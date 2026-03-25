@@ -2,7 +2,7 @@ import os
 import json
 import paho.mqtt.client as mqtt
 import requests
-
+# Template w kahaw ma aandou hata maana taw
 # Configuration
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama-server:11434/api/generate")
 MQTT_BROKER = os.getenv("MQTT_BROKER", "honey-mqtt")
@@ -39,3 +39,4 @@ if __name__ == "__main__":
     client.on_connect = on_connect
     client.connect(MQTT_BROKER, 1883, 60)
     client.loop_forever()
+

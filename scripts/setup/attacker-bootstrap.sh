@@ -13,3 +13,5 @@ ssh -V 2>&1 | head -n 1
 curl --version | head -n 1
 
 echo "Done. Attacker VM is ready for controlled smoke tests."
+
+//commands to run on attacker vm not important 

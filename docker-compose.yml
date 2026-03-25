@@ -4,10 +4,9 @@ services:
     image: cowrie/cowrie:latest
     container_name: cowrie-ssh
     ports:
-      - "2222:2222"
+      - "22:2222"
     volumes:
-      - ./honeypot/ssh/cowrie.cfg:/home/cowrie/cowrie-git/etc/cowrie.cfg
-      - ./honeypot/ssh/logs:/home/cowrie/cowrie-git/var/log/cowrie
+      - /var/log/cowrie:/cowrie/cowrie-git/var/log/cowrie
     restart: always
 
   # Shared Intelligence (MQTT Broker)
@@ -19,6 +18,7 @@ services:
       - "9001:9001"
     volumes:
       - ./configs/mqtt:/mosquitto/config
+    restart: always
 
   # LLM Engine (Local)
   llm-engine:
@@ -28,6 +28,7 @@ services:
       - ./ollama_data:/root/.ollama
     ports:
       - "11434:11434"
+    restart: always
 
   # Real-time Visualization
   grafana:

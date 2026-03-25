@@ -1,0 +1,80 @@
+<group name="cowrie, honeypot,">
+
+  <!-- 1. Base Event: Matches any Cowrie JSON log so we can branch off it -->
+  <rule id="100200" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="eventid">^cowrie.</field>
+    <description>Cowrie Honeypot Event Detected.</description>
+  </rule>
+
+  <!-- 2. Connection Started -->
+  <rule id="100201" level="4">
+    <if_sid>100200</if_sid>
+    <field name="eventid">^cowrie.session.connect</field>
+    <description>Cowrie: New SSH connection attempt from $(src_ip).</description>
+    <group>recon,</group>
+  </rule>
+
+  <!-- 3. Failed Login (Captures credentials used) -->
+  <rule id="100202" level="7">
+    <if_sid>100200</if_sid>
+    <field name="eventid">^cowrie.login.failed</field>
+    <description>Cowrie: Failed login attempt (User: $(username) | Pass: $(password)).</description>
+    <group>authentication_failed, brute_force,</group>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+  </rule>
+
+  <!-- 4. Brute Force Detection (5+ failures in 60 secs from same IP) -->
+  <rule id="100203" level="11" frequency="5" timeframe="60">
+    <if_matched_sid>100202</if_matched_sid>
+    <same_source_ip />
+    <description>Cowrie: SSH Brute Force Detected from $(src_ip).</description>
+    <group>authentication_failed, brute_force,</group>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+  </rule>
+
+  <!-- 5. Successful Login (CRITICAL: means attacker is "in" the honeypot) -->
+  <rule id="100204" level="12">
+    <if_sid>100200</if_sid>
+    <field name="eventid">^cowrie.login.success</field>
+    <description>Cowrie: CRITICAL - Successful honeypot login (User: $(username) | Pass: $(password)).</description>
+    <group>authentication_success, honeypot_compromise,</group>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+  </rule>
+
+  <!-- 6. Command Execution (Catches every command typed by attacker) -->
+  <rule id="100205" level="12">
+    <if_sid>100200</if_sid>
+    <field name="eventid">^cowrie.command.input</field>
+    <description>Cowrie: Attacker executed command - [$(input)]</description>
+    <group>command_execution,</group>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+  </rule>
+
+  <!-- 7. File Download / Payload Drop (wget/curl inside honeypot) -->
+  <rule id="100206" level="13">
+    <if_sid>100200</if_sid>
+    <field name="eventid">^cowrie.session.file_download|^cowrie.session.file_upload</field>
+    <description>Cowrie: Attacker transferred a file/payload! (URL: $(url) | SHA256: $(shasum))</description>
+    <group>malware_drop, ingestion,</group>
+    <mitre>
+      <id>T1105</id>
+    </mitre>
+  </rule>
+  
+  <!-- 8. Connection Closed -->
+  <rule id="100207" level="4">
+    <if_sid>100200</if_sid>
+    <field name="eventid">^cowrie.session.closed</field>
+    <description>Cowrie: Attacker session closed (Duration: $(duration)s).</description>
+  </rule>
+
+</group>

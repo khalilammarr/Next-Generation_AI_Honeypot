@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 import requests
 import os
-
+# Template w kahaw ma aandou hata maana taw
 app = FastAPI()
 
 # Point to our AI Backend script logic or call Ollama directly
