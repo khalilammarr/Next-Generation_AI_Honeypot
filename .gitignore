@@ -1,0 +1,43 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# Runtime data and artifacts
+logs/**
+reports/daily/**
+reports/kpi/**
+honeypot/ssh/logs/**
+ollama_data/**
+
+# Security tool outputs / captures
+*.pcap
+*.pcapng
+*.har
+*.sqlite
+*.db
+
+# Build / temp
+*.tmp
+*.swp
+
+# Large third-party stack snapshot (track separately)
+wazuh/wazuh-docker/

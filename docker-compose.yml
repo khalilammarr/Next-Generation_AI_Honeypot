@@ -1,0 +1,40 @@
+services:
+  # SSH Honeypot (Cowrie)
+  ssh-honeypot:
+    image: cowrie/cowrie:latest
+    container_name: cowrie-ssh
+    ports:
+      - "2222:2222"
+    volumes:
+      - ./honeypot/ssh/cowrie.cfg:/home/cowrie/cowrie-git/etc/cowrie.cfg
+      - ./honeypot/ssh/logs:/home/cowrie/cowrie-git/var/log/cowrie
+    restart: always
+
+  # Shared Intelligence (MQTT Broker)
+  gossip-bus:
+    image: eclipse-mosquitto:latest
+    container_name: honey-mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./configs/mqtt:/mosquitto/config
+
+  # LLM Engine (Local)
+  llm-engine:
+    image: ollama/ollama:latest
+    container_name: ollama-server
+    volumes:
+      - ./ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+
+  # Real-time Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: honey-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    restart: always
