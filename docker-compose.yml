@@ -30,6 +30,16 @@ services:
       - "11434:11434"
     restart: always
 
+  # HTTP Honeypot (FastAPI Agent)
+  http-honeypot:
+    build: ./honeypot/http
+    container_name: honey-http
+    ports:
+      - "80:8000"
+    volumes:
+      - ./logs/http:/app/logs
+    restart: always
+
   # Real-time Visualization
   grafana:
     image: grafana/grafana:latest
