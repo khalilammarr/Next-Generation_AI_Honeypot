@@ -12,11 +12,13 @@ LOG_FILE = os.path.join(LOG_DIR, "http_honeypot.json")
 # Hide standard FastAPI footprints (docs/redoc)
 app = FastAPI(docs_url=None, redoc_url=None) 
 
-# --- SOC Logging Core ---
+# --- SOC Logging Core (Unbuffered for Real-time alerts) ---
 def log_event(event_data: dict):
-    """Write the event to our JSON log file for Wazuh to ingest."""
+    """Write the event to our JSON log file for Wazuh to ingest instantly."""
     with open(LOG_FILE, "a") as f:
         f.write(json.dumps(event_data) + "\n")
+        f.flush()            # Force Python to write to the OS buffer
+        os.fsync(f.fileno()) # Force the OS to write to the physical disk
 
 async def analyze_and_log(request: Request, path: str, background_tasks: BackgroundTasks):
     client_ip = request.client.host if request.client else "unknown"
@@ -65,7 +67,7 @@ COMMON_CSS = """
 async def login_portal(request: Request, background_tasks: BackgroundTasks):
     await analyze_and_log(request, request.url.path, background_tasks)
     
-    # Simulate a fake authentication failure to keep the attacker trying (Brute Force Trap)
+    # Simulate a fake authentication failure (Brute Force Trap)
     error_msg = ""
     if request.method == "POST":
         error_msg = '<p class="warning">❌ Error: Invalid authentication key or user profile.</p>'
@@ -90,7 +92,6 @@ async def login_portal(request: Request, background_tasks: BackgroundTasks):
 
 @app.get("/.env", response_class=JSONResponse)
 async def env_trap(request: Request, background_tasks: BackgroundTasks):
-    """Bait for T1595.002 - Automated file scanners looking for credentials."""
     await analyze_and_log(request, "/.env", background_tasks)
     return JSONResponse(status_code=403, content={"error": "Access Denied", "reason": "Environment isolated"})
 
@@ -114,5 +115,4 @@ async def default_trap(request: Request, path: str, background_tasks: Background
 
 if __name__ == "__main__":
     import uvicorn
-    # Listens on 8000 (Docker mapping 80->8000)
     uvicorn.run(app, host="0.0.0.0", port=8000)
