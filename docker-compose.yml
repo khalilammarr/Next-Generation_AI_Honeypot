@@ -6,6 +6,7 @@ services:
     ports:
       - "22:2222"
     volumes:
+      - cowrie-var:/cowrie/cowrie-git/var
       - /var/log/cowrie:/cowrie/cowrie-git/var/log/cowrie
     restart: always
 
@@ -49,3 +50,6 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     restart: always
+
+volumes:
+  cowrie-var:

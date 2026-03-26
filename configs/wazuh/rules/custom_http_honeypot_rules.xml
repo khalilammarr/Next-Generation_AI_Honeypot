@@ -1,0 +1,88 @@
+<group name="http_honeypot, honeypot,">
+
+  <!-- 1. Base Event: Any HTTP honeypot hit -->
+  <rule id="100300" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="eventid">^http.honeypot.hit</field>
+    <description>HTTP Honeypot: Request detected from $(src_ip).</description>
+  </rule>
+
+  <!-- 2. Login/Admin page probe (attacker scanning for admin panels) -->
+  <rule id="100301" level="7">
+    <if_sid>100300</if_sid>
+    <field name="path">^/login|^/admin</field>
+    <description>HTTP Honeypot: Admin/Login page accessed by $(src_ip) - Path: $(path).</description>
+    <group>recon, web_scan,</group>
+    <mitre>
+      <id>T1595</id>
+    </mitre>
+  </rule>
+
+  <!-- 3. Login brute force attempt (POST to /login or /admin) -->
+  <rule id="100302" level="9">
+    <if_sid>100300</if_sid>
+    <field name="method">^POST</field>
+    <field name="path">^/login|^/admin</field>
+    <description>HTTP Honeypot: Login attempt (POST) from $(src_ip) on $(path).</description>
+    <group>authentication_failed, brute_force,</group>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+  </rule>
+
+  <!-- 4. Brute force detection (5+ POST login attempts in 60 sec) -->
+  <rule id="100303" level="11" frequency="5" timeframe="60">
+    <if_matched_sid>100302</if_matched_sid>
+    <same_source_ip />
+    <description>HTTP Honeypot: Brute Force Detected on web login from $(src_ip).</description>
+    <group>authentication_failed, brute_force,</group>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+  </rule>
+
+  <!-- 5. Sensitive file probe (.env, .git, wp-config, etc.) -->
+  <rule id="100304" level="9">
+    <if_sid>100300</if_sid>
+    <field name="path">\.env|\.git|wp-config|\.htaccess|\.htpasswd|config\.php|backup</field>
+    <description>HTTP Honeypot: Sensitive file scan by $(src_ip) - Path: $(path).</description>
+    <group>recon, web_scan,</group>
+    <mitre>
+      <id>T1595.002</id>
+    </mitre>
+  </rule>
+
+  <!-- 6. Automated scanner detected (common scanner user-agents) -->
+  <rule id="100305" level="8">
+    <if_sid>100300</if_sid>
+    <field name="user_agent">Nikto|sqlmap|gobuster|dirbuster|wfuzz|nuclei|ZAP|nmap|masscan</field>
+    <description>HTTP Honeypot: Automated scanner detected from $(src_ip) - Tool: $(user_agent).</description>
+    <group>recon, web_scan, automated_attack,</group>
+    <mitre>
+      <id>T1595.002</id>
+    </mitre>
+  </rule>
+
+  <!-- 7. Aggressive scanning (10+ requests in 30 sec from same IP) -->
+  <rule id="100306" level="10" frequency="10" timeframe="30">
+    <if_matched_sid>100300</if_matched_sid>
+    <same_source_ip />
+    <description>HTTP Honeypot: Aggressive web scanning from $(src_ip).</description>
+    <group>recon, web_scan,</group>
+    <mitre>
+      <id>T1595</id>
+    </mitre>
+  </rule>
+
+  <!-- 8. Payload injection attempt (POST with suspicious body) -->
+  <rule id="100307" level="12">
+    <if_sid>100300</if_sid>
+    <field name="payload">SELECT|UNION|DROP|INSERT|UPDATE|DELETE|script>|onerror|onload|eval\(|exec\(|/etc/passwd|/bin/sh</field>
+    <description>HTTP Honeypot: Injection/XSS attempt from $(src_ip) - Payload detected.</description>
+    <group>attack, injection, web_attack,</group>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+  </rule>
+
+</group>
