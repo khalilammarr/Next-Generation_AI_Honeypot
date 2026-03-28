@@ -5,10 +5,24 @@ services:
     container_name: cowrie-ssh
     ports:
       - "22:2222"
+      - "23:2223"
     volumes:
-      - cowrie-var:/cowrie/cowrie-git/var
       - /var/log/cowrie:/cowrie/cowrie-git/var/log/cowrie
+      - ./configs/cowrie.cfg:/cowrie/cowrie-git/etc/cowrie.cfg
+      - cowrie-var:/cowrie/cowrie-git/var/
+    depends_on:
+      - llm-engine
     restart: always
+     # HTTP Honeypot (FastAPI Agent)
+  http-honeypot:
+    build: ./honeypot/http
+    container_name: honey-http
+    ports:
+      - "80:8000"
+    volumes:
+      - ./logs/http:/app/logs
+    restart: always
+
 
   # Shared Intelligence (MQTT Broker)
   gossip-bus:
@@ -31,16 +45,6 @@ services:
       - "11434:11434"
     restart: always
 
-  # HTTP Honeypot (FastAPI Agent)
-  http-honeypot:
-    build: ./honeypot/http
-    container_name: honey-http
-    ports:
-      - "80:8000"
-    volumes:
-      - ./logs/http:/app/logs
-    restart: always
-
   # Real-time Visualization
   grafana:
     image: grafana/grafana:latest
@@ -50,6 +54,6 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     restart: always
-
+    
 volumes:
   cowrie-var:
