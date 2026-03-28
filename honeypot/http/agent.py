@@ -3,29 +3,32 @@ from fastapi.responses import HTMLResponse, JSONResponse
 import json
 import os
 import datetime
+import requests
+import asyncio
 
 # --- Configuration ---
 LOG_DIR = "/app/logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_FILE = os.path.join(LOG_DIR, "http_honeypot.json")
 
-# Hide standard FastAPI footprints (docs/redoc)
+# The URL to the Ollama Container (defined in docker-compose.yml)
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://ollama-server:11434/api/generate")
+PERSONALITY_FILE = "/app/personality.txt"
+
 app = FastAPI(docs_url=None, redoc_url=None) 
 
-# --- SOC Logging Core (Unbuffered for Real-time alerts) ---
+# --- SOC Logging Core ---
 def log_event(event_data: dict):
-    """Write the event to our JSON log file for Wazuh to ingest instantly."""
     with open(LOG_FILE, "a") as f:
         f.write(json.dumps(event_data) + "\n")
-        f.flush()            # Force Python to write to the OS buffer
-        os.fsync(f.fileno()) # Force the OS to write to the physical disk
+        f.flush()            
+        os.fsync(f.fileno()) 
 
 async def analyze_and_log(request: Request, path: str, background_tasks: BackgroundTasks):
     client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "unknown")
     method = request.method
     
-    # Payload Scavenging (T1110 - Brute Force or T1595 - Vulnerability Scan)
     try:
         body = await request.body()
         body_text = body.decode("utf-8")[:500]
@@ -44,22 +47,38 @@ async def analyze_and_log(request: Request, path: str, background_tasks: Backgro
     }
     background_tasks.add_task(log_event, event)
 
-# --- Deceptive UI Templates ---
-COMMON_CSS = """
-<style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1c1e; color: #e1e2e1; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-    .card { background: #2d2f31; padding: 40px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 350px; border: 1px solid #3e4042; }
-    h2 { color: #4dabf7; margin-bottom: 24px; text-align: center; font-weight: 400; font-size: 24px; }
-    input { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #3e4042; border-radius: 4px; background: #1a1c1e; color: #fff; box-sizing: border-box; }
-    button { width: 100%; padding: 12px; border: none; border-radius: 4px; background: #1c7ed6; color: white; cursor: pointer; font-size: 16px; transition: background 0.2s; }
-    button:hover { background: #1864ab; }
-    .warning { color: #fa5252; font-size: 13px; text-align: center; margin-top: 15px; }
-    .footer { font-size: 11px; color: #868e96; text-align: center; margin-top: 25px; }
-</style>
-"""
+# --- The AI Brain (Ollama Integration) ---
+def query_ai_morph(path: str, method: str, user_agent: str) -> str:
+    """Synchronous function to query Ollama for a custom deception page."""
+    # 1. Provide the "Soul"
+    try:
+        with open(PERSONALITY_FILE, "r") as f:
+            system_prompt = f.read()
+    except Exception:
+        system_prompt = "You are a vulnerable legacy web server returning realistic HTML."
+
+    # 2. Tell the AI what the attacker is doing
+    prompt = f"The attacker (User-Agent: {user_agent}) requested: {method} {path}. Generate a highly realistic file or HTML response that keeps them hooked but provides no real access. DO NOT USE MARKDOWN. Return ONLY raw HTML/Text code for the fake page."
+
+    payload = {
+        "model": "llama3",
+        "system": system_prompt,
+        "prompt": prompt,
+        "stream": False
+    }
+
+    try:
+        # 3. Request the trap from the AI Brain
+        res = requests.post(OLLAMA_URL, json=payload, timeout=20)   
+        # Return the AI's generated code!
+        return res.json().get("response", "<h1>500 Internal Error - Deception Failed</h1>")
+    except Exception as e:
+        return f"<h1>Service Unavailable - AI Brain Offline ({str(e)})</h1>"
+
 
 # --- Routes (Bait Endpoints) ---
 
+# We only keep the Login specific as a fixed trap because it catches credentials perfectly.
 @app.get("/login", response_class=HTMLResponse)
 @app.get("/admin", response_class=HTMLResponse)
 @app.post("/login", response_class=HTMLResponse)
@@ -67,51 +86,38 @@ COMMON_CSS = """
 async def login_portal(request: Request, background_tasks: BackgroundTasks):
     await analyze_and_log(request, request.url.path, background_tasks)
     
-    # Simulate a fake authentication failure (Brute Force Trap)
     error_msg = ""
     if request.method == "POST":
-        error_msg = '<p class="warning">❌ Error: Invalid authentication key or user profile.</p>'
+        error_msg = '<p style="color:red; text-align:center;">❌ Error: Invalid authentication.</p>'
 
     html = f"""
-    <html><head><title>Secure Access Gateway</title>{COMMON_CSS}</head>
-    <body>
-        <div class="card">
-            <h2>Sentinel<span style="font-weight:700">OS</span> v2.4</h2>
-            <p style="font-size: 14px; text-align: center; color: #adb5bd; margin-bottom: 30px;">Authorized Access Only (Node: PRD-CLUSTER-07)</p>
+    <html><head><title>Admin Portal</title></head>
+    <body style="background: #1a1c1e; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh;">
+        <div style="background: #2d2f31; padding: 40px; border-radius: 8px;">
+            <h2 style="text-align: center; color: #4dabf7;">Sentinel Gateway</h2>
             {error_msg}
             <form method="POST">
-                <input type="text" name="username" placeholder="Employee ID / Mail" required/>
-                <input type="password" name="password" placeholder="Access Password" required/>
-                <button type="submit">Unlock Partition</button>
+                <input type="text" name="username" placeholder="Username" style="width:100%; padding:10px; margin-bottom:15px;" required/>
+                <input type="password" name="password" placeholder="Password" style="width:100%; padding:10px; margin-bottom:15px;" required/>
+                <button type="submit" style="width:100%; padding:10px; cursor:pointer;">Login</button>
             </form>
-            <div class="footer">Security Policy 12-4B | Global Threat Intelligence Group</div>
         </div>
     </body></html>
     """
     return HTMLResponse(content=html, status_code=200)
 
-@app.get("/.env", response_class=JSONResponse)
-async def env_trap(request: Request, background_tasks: BackgroundTasks):
-    await analyze_and_log(request, "/.env", background_tasks)
-    return JSONResponse(status_code=403, content={"error": "Access Denied", "reason": "Environment isolated"})
-
+# The AI "Morphing" Endpoint
 @app.get("/{path:path}", response_class=HTMLResponse)
-async def default_trap(request: Request, path: str, background_tasks: BackgroundTasks):
-    await analyze_and_log(request, f"/{path}", background_tasks)
+async def dynamic_ai_trap(request: Request, path: str, background_tasks: BackgroundTasks):
+    """If they hit ANYTHING else, hand the request to the AI Brain!"""
+    full_path = f"/{path}"
+    await analyze_and_log(request, full_path, background_tasks)
     
-    # Generic "Directory Protected" response to pique curiosity
-    html = f"""
-    <html><head><title>Directory: /{path}</title>{COMMON_CSS}</head>
-    <body>
-        <div class="card" style="width: 500px;">
-            <h2 style="text-align: left;">HTTP 403: Forbidden</h2>
-            <hr style="border: 0; border-top: 1px solid #3e4042; margin-bottom: 20px;">
-            <p>Access to the requested resource <code>/{path}</code> is restricted. Credentials must be established via the <a href="/login" style="color: #4dabf7;">Authentication Proxy</a>.</p>
-            <p style="font-size: 13px; color: #868e96;">Error Trace ID: 0x{os.urandom(4).hex()}</p>
-        </div>
-    </body></html>
-    """
-    return HTMLResponse(content=html, status_code=403)
+    # Send the AI task to a separate thread so we don't block other web traffic!
+    user_agent = request.headers.get("user-agent", "unknown")
+    ai_html = await asyncio.to_thread(query_ai_morph, full_path, request.method, user_agent)
+    
+    return HTMLResponse(content=ai_html, status_code=200)
 
 if __name__ == "__main__":
     import uvicorn
