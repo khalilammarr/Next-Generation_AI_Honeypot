@@ -1,0 +1,171 @@
+\documentclass[11pt,a4paper,oneside]{article}
+
+% ==========================================
+% PACKAGES & COSMETICS
+% ==========================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable,raster}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{fontawesome5}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning, shadow, shadows.blur}
+
+% --- PREMIUM COLOR PALETE ---
+\definecolor{MainNavy}{RGB}{13, 27, 42}
+\definecolor{Gold}{RGB}{193, 153, 52}
+\definecolor{SoftGray}{RGB}{245, 245, 247}
+\definecolor{BannerGray}{RGB}{30, 40, 55}
+
+% ==========================================
+% LAYOUT DEFS
+% ==========================================
+\hypersetup{colorlinks=true, linkcolor=MainNavy, urlcolor=Gold}
+
+\titleformat{\section}{\Large\bfseries\color{MainNavy}}{}{0em}{\hspace{-0.3pt}\vrule width 2pt\hspace{0.5em}}
+\titleformat{\subsection}{\large\bfseries\color{MainNavy}}{}{0em}{}
+
+\setlist[itemize]{label=\textcolor{Gold}{\faCaretRight}, leftmargin=1.5em}
+
+% --- CUSTOM BOXES ---
+\newtcolorbox{featurebox}[1]{
+    enhanced,
+    colback=white,
+    colframe=MainNavy,
+    coltitle=Gold,
+    fonttitle=\bfseries,
+    title=#1,
+    arc=2mm,
+    boxrule=0.8pt,
+    shadow={1mm}{-1mm}{0mm}{black!10}
+}
+
+\newtcolorbox{terminalbox}{
+    enhanced,
+    colback=black,
+    coltext=white,
+    colframe=gray!30,
+    fontupper=\small\ttfamily,
+    arc=1mm,
+    boxrule=0.5pt,
+    left=2mm
+}
+
+% ==========================================
+% DOCUMENT START
+% ==========================================
+\begin{document}
+
+% --- SLICK COMPACT TITLE ---
+\begin{center}
+    \vspace*{0.5cm}
+    \begin{tikzpicture}
+        \node[fill=MainNavy, text=white, inner sep=15pt, rounded corners=3mm, align=center, blur shadow] {
+            \Huge \textbf{GHOSTNET} \\
+            \large \textcolor{Gold}{The Future of AI-Powered Deception}
+        };
+    \end{tikzpicture}
+    \vspace{0.8cm}
+\end{center}
+
+% --- QUICK INTRO ---
+\begin{tcolorbox}[colback=SoftGray, colframe=white, arc=3mm]
+    \noindent \textbf{The Problem:} Standard honeypots are static, boring, and easily detected by hackers. \\
+    \noindent \textbf{The GhostNet Solution:} We used \textbf{Llama 3.1 8B} and \textbf{NVIDIA NIM} to build a server that doesn't actually exist—it "hallucinates" responses in real-time, making it impossible for attackers to tell it's a trap.
+\end{tcolorbox}
+
+% --- MISSION & IMPACT SECTION ---
+\section{Mission \& Impact: Why GhostNet?}
+\begin{description}[leftmargin=1em, font=\bfseries\color{Gold}]
+    \item[The Need for Adaptability:] Traditional security systems follow rigid rules. Attackers know those rules. GhostNet changes the game by being \textit{unpredictable}. It adapts to the attacker's intent, providing a uniquely generated path for every single intruder.
+    \item[High-Efficiency Deception:] In a real-world SOC (Security Operations Center), every minute counts. GhostNet wastes the attacker's time while silently gathering their tools, IP addresses, and techniques—giving defenders a massive head start.
+    \item[The Enterprise Edge:] By offloading the "thinking" to NVIDIA-powered LLMs, we've created a system that requires almost \textbf{zero maintenance}. You don't need to manually configure files or pages; the AI handles the architecture for you.
+\end{description}
+
+\vspace{0.3cm}
+
+% --- THE SIMPLE PROCESS DIAGRAM ---
+\section{How It Works: The Simple Loop}
+\begin{center}
+\begin{tikzpicture}[node distance=1.5cm, every node/.style={fill=white, font=\sffamily}]
+    \node (attacker) [draw, rounded corners, minimum width=2.5cm, fill=red!10] {\faUserSecret \\ Attacker};
+    \node (proxy) [draw, rounded corners, right=of attacker, minimum width=2.5cm, fill=blue!5] {\faShieldAlt \\ GhostNet Edge};
+    \node (llm) [draw, rounded corners, right=of proxy, minimum width=2.5cm, fill=yellow!10] {\faBrain \\ Llama 3.1 AI};
+
+    \draw[thick, ->] (attacker.east) -- node[above, font=\scriptsize]{Tries to hack} (proxy.west);
+    \draw[thick, ->] (proxy.east) -- node[above, font=\scriptsize]{Asks for content} (llm.west);
+    \draw[thick, ->, bend left=40] (llm.west) to node[below, font=\scriptsize]{Generates fake data} (proxy.east);
+    \draw[thick, ->, bend left=40] (proxy.west) to node[below, font=\scriptsize]{Deceives hacker} (attacker.east);
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.5cm}
+
+% --- KEY FEATURES GRID ---
+\section{Key Features}
+\begin{tcbraster}[raster columns=2, raster gutter=4mm]
+    \begin{featurebox}{\faGlobe \hspace{1mm} Smarter HTTP Requests}
+        Every URL the attacker visits (like \texttt{/admin} or \texttt{/.env}) is generated on-the-fly. No dead links, just infinite traps.
+    \end{featurebox}
+    \begin{featurebox}{\faTerminal \hspace{1mm} Realistic SSH Shell}
+        Hackers can run \texttt{ls}, \texttt{cd}, or \texttt{cat}. The AI simulates a real Linux server with 100\% realistic outputs.
+    \end{featurebox}
+    \begin{featurebox}{\faLock \hspace{1mm} Anti-Hack Protections}
+        Built-in Rate Limiting and Prompt Sanitization prevent attackers from breaking the AI or costing you money.
+    \end{featurebox}
+    \begin{featurebox}{\faHistory \hspace{1mm} Context Memory}
+        If a hacker creates a file, the AI remembers it. The system stays consistent across the entire session.
+    \end{featurebox}
+\end{tcbraster}
+
+\vspace{0.5cm}
+
+% --- REAL-TIME EXAMPLES ---
+\section{Real Deception Examples}
+
+\subsection{1. Fake Database Leak}
+When a hacker looks for sensitive files, the AI creates realistic content based on the file extension.
+
+\begin{terminalbox}
+$ curl http://ghostnet/backup.sql \\
+-- MySQL dump \\
+CREATE TABLE users (id INT, user VARCHAR, pass_hash VARCHAR); \\
+INSERT INTO users VALUES (1, 'admin', '$2b$12$Kk...');
+\end{terminalbox}
+
+\subsection{2. Interactive SSH Session}
+The shell feels alive. It handles directories and file listings perfectly.
+
+\begin{terminalbox}
+root@server:/# cd /etc \\
+root@server:/etc# ls \\
+passwd  hosts  ssh/  apt/  nginx/  shadow \\
+root@server:/etc# cat hosts \\
+127.0.0.1   localhost  prod-server-01
+\end{terminalbox}
+
+\vspace{0.5cm}
+
+% --- PERFORMANCE SECTION ---
+\section{The Numbers}
+\begin{itemize}
+    \item \textbf{Response Time:} < 200ms using NVIDIA NIM acceleration.
+    \item \textbf{Deception Depth:} Infinite (Pages are generated as needed).
+    \item \textbf{Resource Usage:} Minimal footprint (Runs in simple Docker containers).
+\end{itemize}
+
+\vspace{1cm}
+\begin{center}
+    \textcolor{gray!60}{\rule{0.4\textwidth}{0.4pt}} \\
+    \small \textbf{GhostNet Project} -- Built for Zero-Trust Enterprise Environments.
+\end{center}
+
+\end{document}

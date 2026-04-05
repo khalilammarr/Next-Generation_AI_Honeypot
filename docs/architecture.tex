@@ -1,0 +1,567 @@
+\documentclass[12pt,a4paper]{article}
+
+% --- Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french,english]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, calc, shadows, backgrounds}
+\usepackage{forest}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{caption}
+
+\geometry{margin=2.2cm}
+
+% --- Colors ---
+\definecolor{ghostgreen}{HTML}{00C853}
+\definecolor{ghostdark}{HTML}{1A1A2E}
+\definecolor{ghostblue}{HTML}{0F3460}
+\definecolor{ghostred}{HTML}{E94560}
+\definecolor{ghostyellow}{HTML}{FFC107}
+\definecolor{ghostgray}{HTML}{2D2D44}
+\definecolor{codebg}{HTML}{F5F5F5}
+
+% --- Listings ---
+\lstset{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{codebg},
+    frame=single,
+    rulecolor=\color{ghostgray},
+    breaklines=true,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    keywordstyle=\color{ghostblue}\bfseries,
+    stringstyle=\color{ghostred},
+    commentstyle=\color{gray}\itshape,
+    showstringspaces=false,
+}
+
+% --- Header/Footer ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{ghostgray}{GhostNet -- Architecture Technique}}
+\fancyhead[R]{\small\textcolor{ghostgray}{\thepage}}
+\fancyfoot[C]{\small\textcolor{gray}{Confidentiel -- Usage Académique Uniquement}}
+
+% --- TColorBox ---
+\tcbuselibrary{skins, breakable}
+
+\newtcolorbox{infobox}[1][]{
+    colback=ghostblue!5,
+    colframe=ghostblue,
+    fonttitle=\bfseries,
+    title=#1,
+    breakable
+}
+
+\newtcolorbox{warnbox}[1][]{
+    colback=ghostred!5,
+    colframe=ghostred,
+    fonttitle=\bfseries,
+    title=#1,
+    breakable
+}
+
+% ============================================================
+\begin{document}
+
+% --- Title Page ---
+\begin{titlepage}
+\begin{center}
+\vspace*{2cm}
+
+{\Huge\bfseries\textcolor{ghostblue}{GhostNet}}\\[0.5cm]
+{\Large\textcolor{ghostgray}{AI-Powered Deception Infrastructure}}\\[2cm]
+
+\begin{tikzpicture}
+    \node[draw=ghostblue, line width=2pt, rounded corners=10pt, 
+          minimum width=10cm, minimum height=3cm, fill=ghostblue!5] (box) {};
+    \node[above=0.3cm] at (box.center) {\Large\bfseries Architecture Technique};
+    \node[below=0.3cm] at (box.center) {\large Documentation Complète du Système};
+\end{tikzpicture}
+
+\vspace{2cm}
+
+\begin{tabular}{ll}
+    \textbf{Projet} & Honeypot LLM -- Sécurité Offensive \\
+    \textbf{Technologie} & FastAPI + Cowrie + NVIDIA NIM \\
+    \textbf{Modèle IA} & Meta Llama 3.1 8B Instruct \\
+    \textbf{Protocoles} & HTTP (Port 80) + SSH (Port 22) \\
+    \textbf{SIEM} & Wazuh 4.14.4 \\
+    \textbf{Date} & Avril 2026 \\
+\end{tabular}
+
+\vfill
+{\small\textcolor{gray}{Document généré automatiquement -- Version 2.0}}
+\end{center}
+\end{titlepage}
+
+% --- Table of Contents ---
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Vue d'Ensemble du Système}
+% ============================================================
+
+GhostNet est une plateforme de \textbf{déception active} (Active Deception) alimentée par l'intelligence artificielle. Elle expose deux protocoles d'attaque majeurs (HTTP et SSH) et utilise un Large Language Model (LLM) hébergé sur le cloud NVIDIA NIM pour générer des réponses dynamiques et indétectables en temps réel.
+
+\begin{infobox}[Objectif Stratégique]
+Piéger les attaquants en leur faisant croire qu'ils ont compromis un vrai serveur d'entreprise (Petro-Global Systems), tout en capturant leurs techniques, identifiants et payloads pour analyse SOC via Wazuh SIEM.
+\end{infobox}
+
+% --- Global Architecture Diagram ---
+\subsection{Architecture Globale}
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm and 2.5cm,
+    every node/.style={font=\small},
+    box/.style={draw, rounded corners=5pt, minimum width=3cm, minimum height=1.2cm, align=center, fill=#1!10, draw=#1, line width=1pt},
+    box/.default=ghostblue,
+    arrow/.style={-{Stealth[length=3mm]}, thick, color=ghostgray},
+    label/.style={font=\tiny, color=gray, midway, above}
+]
+    % Internet
+    \node[box=ghostred] (attacker) {\textbf{Attaquant}\\Internet};
+    
+    % Honeypots
+    \node[box=ghostgreen, below left=2cm and 1cm of attacker] (ssh) {\textbf{Cowrie SSH}\\Port 22/23};
+    \node[box=ghostgreen, below right=2cm and 1cm of attacker] (http) {\textbf{FastAPI HTTP}\\Port 80};
+    
+    % AI
+    \node[box=ghostblue, below=2.5cm of attacker] (nvidia) {\textbf{NVIDIA NIM}\\Llama 3.1 8B};
+    
+    % Support
+    \node[box=ghostyellow, below left=2cm and 0cm of nvidia] (wazuh) {\textbf{Wazuh SIEM}\\Analyse SOC};
+    \node[box=ghostgray, below right=2cm and 0cm of nvidia] (mqtt) {\textbf{MQTT Broker}\\Mosquitto};
+    \node[box=ghostgray, right=1.5cm of mqtt] (grafana) {\textbf{Grafana}\\Dashboard};
+    
+    % Arrows
+    \draw[arrow] (attacker) -- node[label, left] {SSH} (ssh);
+    \draw[arrow] (attacker) -- node[label, right] {HTTP} (http);
+    \draw[arrow, dashed, color=ghostblue] (ssh) -- node[label, left] {API} (nvidia);
+    \draw[arrow, dashed, color=ghostblue] (http) -- node[label, right] {API} (nvidia);
+    \draw[arrow, color=ghostyellow] (ssh) -- node[label, below left] {JSON Logs} (wazuh);
+    \draw[arrow, color=ghostyellow] (http) -- node[label, below right] {JSON Logs} (wazuh);
+    \draw[arrow, color=ghostgray, dashed] (http) -- (mqtt);
+    \draw[arrow, color=ghostgray, dashed] (mqtt) -- (grafana);
+    
+    % Docker boundary
+    \begin{pgfonlayer}{background}
+        \node[draw=ghostgray, dashed, rounded corners=10pt, fit=(ssh)(http)(mqtt)(grafana), 
+              inner sep=15pt, label={[font=\footnotesize, color=ghostgray]above:Docker Compose Stack}] {};
+    \end{pgfonlayer}
+\end{tikzpicture}
+\caption{Architecture globale de GhostNet}
+\end{figure}
+
+% ============================================================
+\section{Structure du Code Source}
+% ============================================================
+
+\subsection{Arborescence du Projet}
+
+\begin{figure}[h!]
+\centering
+\begin{forest}
+    for tree={
+        font=\ttfamily\small,
+        folder,
+        grow'=0,
+        fit=band,
+        edge={ghostgray, thick},
+        l sep=12pt,
+    }
+    [LLM\_Honeypot-main/, fill=ghostblue!10
+        [.env, is file]
+        [docker-compose.yml, is file]
+        [personality.txt, is file]
+        [configs/
+            [cowrie.cfg, is file]
+            [mqtt/, fill=ghostgray!10]
+        ]
+        [honeypot/
+            [http/, fill=ghostgreen!10
+                [agent.py, is file]
+                [app\_main.py, is file]
+                [Dockerfile, is file]
+                [requirements.txt, is file]
+                [core/
+                    [config.py, is file]
+                    [cache.py, is file]
+                    [logger.py, is file]
+                ]
+                [middleware/
+                    [rate\_limiter.py, is file]
+                ]
+                [policies/
+                    [response\_policy.py, is file]
+                    [sanitizer.py, is file]
+                    [mime\_router.py, is file]
+                ]
+                [services/
+                    [llm\_orchestrator.py, is file]
+                ]
+                [api/routers/
+                    [system.py, is file]
+                    [catch\_all.py, is file]
+                ]
+            ]
+            [ssh/, fill=ghostgreen!10
+                [cowrie.cfg (monté), is file]
+            ]
+        ]
+        [logs/
+            [http/http\_honeypot.json, is file]
+        ]
+    ]
+\end{forest}
+\caption{Arborescence complète du projet}
+\end{figure}
+
+% ============================================================
+\subsection{Rôle de Chaque Module}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Couche} & \textbf{Fichier} & \textbf{Responsabilité} \\
+\midrule
+\texttt{Entry} & \texttt{agent.py} & Point d'entrée. Importe \texttt{app} et lance Uvicorn. \\
+\texttt{Hub} & \texttt{app\_main.py} & Hub central. Monte les middleware et les routeurs. \\
+\midrule
+\texttt{Core} & \texttt{config.py} & Configuration centralisée via variables d'environnement. \\
+ & \texttt{cache.py} & Cache TTL thread-safe pour les réponses LLM. \\
+ & \texttt{logger.py} & Journalisation JSON structurée pour Wazuh SIEM. \\
+\midrule
+\texttt{Middleware} & \texttt{rate\_limiter.py} & Limitation de débit IP (fenêtre glissante). \\
+\midrule
+\texttt{Policies} & \texttt{response\_policy.py} & Classification d'intention attaquant + budget de tokens. \\
+ & \texttt{sanitizer.py} & Défense contre l'injection de prompt + rédaction de secrets. \\
+ & \texttt{mime\_router.py} & Routage MIME sémantique + directives de format LLM. \\
+\midrule
+\texttt{Services} & \texttt{llm\_orchestrator.py} & Cerveau IA : failover multi-modèle, cache, métriques. \\
+\midrule
+\texttt{Routers} & \texttt{system.py} & Pièges statiques (\texttt{/login}, \texttt{/admin}) + récolte d'identifiants. \\
+ & \texttt{catch\_all.py} & Route dynamique IA (capture tout le reste). \\
+\bottomrule
+\end{tabularx}
+\caption{Responsabilités des modules Python}
+\end{table}
+
+% ============================================================
+\section{Flux de Traitement d'une Requête HTTP}
+% ============================================================
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[
+    node distance=1.2cm,
+    every node/.style={font=\small},
+    process/.style={draw, rounded corners=3pt, minimum width=4cm, minimum height=0.9cm, align=center, fill=#1!10, draw=#1},
+    process/.default=ghostblue,
+    decision/.style={draw, diamond, aspect=2, minimum width=2.5cm, align=center, fill=ghostyellow!15, draw=ghostyellow, inner sep=2pt, font=\small},
+    arrow/.style={-{Stealth[length=2.5mm]}, thick, color=ghostgray},
+    label/.style={font=\tiny, color=gray}
+]
+    \node[process=ghostred] (req) {1. Requête HTTP Attaquant};
+    \node[decision, below=of req] (rate) {Rate Limiter\\30 req/min?};
+    \node[process=ghostred, right=3cm of rate] (block) {429 Too Many\\Requests};
+    
+    \node[decision, below=of rate] (static) {Route Statique?\\(/login, /admin)};
+    \node[process=ghostgreen, right=3cm of static] (login) {Page Login +\\Credential Harvest};
+    
+    \node[process=ghostblue, below=of static] (sanitize) {2. Sanitize Path\\(Anti-Injection)};
+    \node[process=ghostblue, below=of sanitize] (classify) {3. Classify Intent\\(auth/scan/generic)};
+    
+    \node[decision, below=of classify] (cache) {Cache Hit?};
+    \node[process=ghostgreen, right=3cm of cache] (cached) {Réponse\\Cachée};
+    
+    \node[decision, below=of cache] (skip) {Skip LLM?\\(robots.txt, etc.)};
+    \node[process=ghostgray, right=3cm of skip] (fallback) {Réponse\\Déterministe};
+    
+    \node[process=ghostblue, below=of skip] (llm) {4. Query NVIDIA NIM\\Llama 3.1 8B Instruct};
+    \node[process=ghostblue, below=of llm] (redact) {5. Redact Output\\(Clés API, AI Disclosure)};
+    \node[process=ghostgreen, below=of redact] (respond) {6. Réponse + MIME\\+ Fake Apache Headers};
+    
+    % Arrows
+    \draw[arrow] (req) -- (rate);
+    \draw[arrow] (rate) -- node[label, above] {Oui} (block);
+    \draw[arrow] (rate) -- node[label, left] {Non} (static);
+    \draw[arrow] (static) -- node[label, above] {Oui} (login);
+    \draw[arrow] (static) -- node[label, left] {Non} (sanitize);
+    \draw[arrow] (sanitize) -- (classify);
+    \draw[arrow] (classify) -- (cache);
+    \draw[arrow] (cache) -- node[label, above] {Oui} (cached);
+    \draw[arrow] (cache) -- node[label, left] {Non} (skip);
+    \draw[arrow] (skip) -- node[label, above] {Oui} (fallback);
+    \draw[arrow] (skip) -- node[label, left] {Non} (llm);
+    \draw[arrow] (llm) -- (redact);
+    \draw[arrow] (redact) -- (respond);
+\end{tikzpicture}
+\caption{Pipeline de traitement complet d'une requête HTTP}
+\end{figure}
+
+% ============================================================
+\section{Modèles d'Intelligence Artificielle}
+% ============================================================
+
+\subsection{Comparatif des Modèles Évalués}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l c c c X}
+\toprule
+\textbf{Modèle} & \textbf{Params} & \textbf{Type} & \textbf{Latence} & \textbf{Évaluation Honeypot} \\
+\midrule
+Llama 3.1 8B Instruct & 8B & Instruct & $\sim$200ms & \textcolor{ghostgreen}{\textbf{SÉLECTIONNÉ}}. Rapide, discipliné, pas de bavardage. \\
+Llama 3.3 70B Instruct & 70B & Instruct & $\sim$800ms & Bon mais lent pour le SSH interactif. \\
+DeepSeek V3.1 Terminus & 685B & Reasoning & $\sim$2s & Trop de réflexion visible. Expose l'IA. \\
+MiniMax M2.5 & 230B & Reasoning & $\sim$3s & Intelligent mais génère des explications. \\
+Phi-3.5 Mini & 3.8B & Instruct & $\sim$100ms & Ultra-rapide mais explique ses actions. \\
+DeepSeek R1 Distill 14B & 14B & Distilled & $\sim$400ms & Bon compromis mais mode ``think'' actif. \\
+\bottomrule
+\end{tabularx}
+\caption{Benchmark des modèles NVIDIA NIM pour la déception active}
+\end{table}
+
+\begin{infobox}[Critères de Sélection du Modèle]
+Pour un honeypot, le modèle idéal doit satisfaire trois critères simultanément :
+\begin{enumerate}[noitemsep]
+    \item \textbf{Vitesse} : Latence $<$ 500ms pour éviter les soupçons de l'attaquant.
+    \item \textbf{Discipline} : Les modèles \textit{Instruct} suivent les ordres sans réfléchir à voix haute, contrairement aux modèles de \textit{Reasoning} qui exposent leur processus de pensée.
+    \item \textbf{Crédibilité} : La sortie doit être du code/texte brut (pas de Markdown, pas de phrases d'assistant).
+\end{enumerate}
+\end{infobox}
+
+\subsection{Configuration du Modèle Actif}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Paramètre} & \textbf{Valeur} \\
+\midrule
+\texttt{model} & \texttt{meta/llama-3.1-8b-instruct} \\
+\texttt{temperature} & \texttt{0.01} (quasi-déterministe) \\
+\texttt{max\_tokens} & \texttt{1024} (HTTP) / \texttt{512} (SSH) \\
+\texttt{top\_p} & \texttt{0.9} \\
+\texttt{thinking} & \texttt{false} (désactivé) \\
+\texttt{stream} & \texttt{false} (attente de réponse complète) \\
+\bottomrule
+\end{tabular}
+\caption{Paramètres LLM en production}
+\end{table}
+
+% ============================================================
+\section{Architecture de Sécurité (Defense-in-Depth)}
+% ============================================================
+
+Le honeypot lui-même doit être protégé contre les attaques. Cinq couches de sécurité sont implémentées :
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[
+    node distance=0.8cm,
+    layer/.style={draw, rounded corners=5pt, minimum width=12cm, minimum height=1cm, align=center, fill=#1!10, draw=#1, font=\small},
+    arrow/.style={-{Stealth[length=2.5mm]}, thick, color=ghostgray},
+]
+    \node[layer=ghostred] (l1) {\textbf{Couche 1 :} Rate Limiter IP -- 30 req/min (fenêtre glissante)};
+    \node[layer=ghostyellow, below=of l1] (l2) {\textbf{Couche 2 :} Validation de Payload -- URL $\leq$ 256 chars, Body $\leq$ 2KB};
+    \node[layer=ghostblue, below=of l2] (l3) {\textbf{Couche 3 :} Sanitisation Prompt Injection -- Blocage de 7 patterns d'attaque};
+    \node[layer=ghostblue, below=of l3] (l4) {\textbf{Couche 4 :} Sémaphore LLM -- Max 16 requêtes concurrentes};
+    \node[layer=ghostgreen, below=of l4] (l5) {\textbf{Couche 5 :} Rédaction de Sortie -- Suppression de clés API, auto-déclaration IA};
+    
+    \draw[arrow] (l1) -- (l2);
+    \draw[arrow] (l2) -- (l3);
+    \draw[arrow] (l3) -- (l4);
+    \draw[arrow] (l4) -- (l5);
+\end{tikzpicture}
+\caption{Modèle Defence-in-Depth du honeypot}
+\end{figure}
+
+\subsection{Vecteurs d'Attaque et Mitigations}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Attaque} & \textbf{Exemple} & \textbf{Mitigation} \\
+\midrule
+Injection de Prompt & \texttt{GET /ignore-previous-instructions} & Regex de détection + redirection vers \texttt{/403} \\
+Exfiltration de Clé & \texttt{GET /print-api-key} & Rédaction \texttt{nvapi-*} dans toute sortie LLM \\
+Épuisement de Tokens & 10K requêtes/sec & Rate limiter + cache TTL + sémaphore \\
+Détournement de Rôle & \texttt{GET /respond-as-chatgpt} & Blocage des patterns \texttt{act as}, \texttt{behave like} \\
+DDoS Financier & Requêtes massives à l'API & Budget journalier + mode fallback automatique \\
+\bottomrule
+\end{tabularx}
+\caption{Matrice de menaces et mitigations}
+\end{table}
+
+% ============================================================
+\section{Infrastructure Docker}
+% ============================================================
+
+\subsection{Services Docker Compose}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l l l X}
+\toprule
+\textbf{Service} & \textbf{Image} & \textbf{Port} & \textbf{Rôle} \\
+\midrule
+\texttt{ssh-honeypot} & \texttt{cowrie/cowrie:latest} & 22, 23 & Piège SSH/Telnet avec backend LLM \\
+\texttt{http-honeypot} & \texttt{python:3.11-slim} (build) & 80 & Agent FastAPI avec IA streaming \\
+\texttt{gossip-bus} & \texttt{eclipse-mosquitto} & 1883 & Broker MQTT pour événements temps réel \\
+\texttt{grafana} & \texttt{grafana/grafana} & 3000 & Tableau de bord de visualisation \\
+\bottomrule
+\end{tabularx}
+\caption{Services Docker Compose actifs}
+\end{table}
+
+\subsection{Flux de Données vers le SIEM}
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm and 3cm,
+    every node/.style={font=\small},
+    box/.style={draw, rounded corners=3pt, minimum width=2.8cm, minimum height=1cm, align=center, fill=#1!10, draw=#1},
+    box/.default=ghostblue,
+    arrow/.style={-{Stealth[length=2.5mm]}, thick, color=ghostgray},
+]
+    \node[box=ghostgreen] (http) {HTTP Agent};
+    \node[box=ghostgreen, below=of http] (ssh) {Cowrie SSH};
+    \node[box=ghostblue, right=3cm of http] (json) {JSON Log\\Files};
+    \node[box=ghostyellow, right=3cm of json] (wazuh) {Wazuh\\Manager};
+    \node[box=ghostred, right=2.5cm of wazuh] (dash) {Wazuh\\Dashboard};
+    
+    \draw[arrow] (http) -- node[above, font=\tiny] {fsync()} (json);
+    \draw[arrow] (ssh) -| (json);
+    \draw[arrow] (json) -- node[above, font=\tiny] {Filebeat} (wazuh);
+    \draw[arrow] (wazuh) -- node[above, font=\tiny] {HTTPS} (dash);
+\end{tikzpicture}
+\caption{Pipeline de journalisation vers Wazuh SIEM}
+\end{figure}
+
+% ============================================================
+\section{Stratégie de Déception (Prompt Engineering)}
+% ============================================================
+
+\subsection{Technique de ``Few-Shot Poisoning''}
+
+Le fichier \texttt{personality.txt} utilise une technique avancée de prompt engineering pour forcer le LLM à se comporter comme une machine et non comme un assistant. Des exemples de \textbf{Mauvaises Réponses} (avec bavardage d'IA) et de \textbf{Bonnes Réponses} (sortie machine brute) sont fournis au modèle.
+
+\begin{warnbox}[Exemple de Réponse Interdite]
+\begin{lstlisting}[language={}]
+"Here is the content of /etc/passwd: 
+root:x:0:0:root:/root:/bin/bash..."
+\end{lstlisting}
+\textbf{Erreur :} Présence d'IA détectée. Le marqueur conversationnel ``Here is'' trahit le système.
+\end{warnbox}
+
+\begin{infobox}[Exemple de Réponse Correcte]
+\begin{lstlisting}[language={}]
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+\end{lstlisting}
+Sortie brute d'un système Linux. Aucune trace d'intelligence artificielle.
+\end{infobox}
+
+\subsection{Routage MIME Sémantique}
+
+Le module \texttt{mime\_router.py} adapte le format de sortie de l'IA au type de fichier demandé par l'attaquant :
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{l l l}
+\toprule
+\textbf{Requête} & \textbf{Content-Type} & \textbf{Directive LLM} \\
+\midrule
+\texttt{/backup.sql} & \texttt{text/plain} & ``FORMAT: raw MySQL dump'' \\
+\texttt{/.env} & \texttt{text/plain} & ``FORMAT: raw KEY=VALUE config'' \\
+\texttt{/api/v1/users} & \texttt{application/json} & ``FORMAT: raw JSON array'' \\
+\texttt{/config.xml} & \texttt{application/xml} & ``FORMAT: raw XML document'' \\
+\texttt{/index.php} & \texttt{text/html} & ``FORMAT: rendered HTML page'' \\
+\bottomrule
+\end{tabular}
+\caption{Routage MIME dynamique par extension de fichier}
+\end{table}
+
+% ============================================================
+\section{Métriques Opérationnelles}
+% ============================================================
+
+Le module \texttt{LLMOrchestrator} maintient des compteurs en temps réel pour le suivi des performances :
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{l l}
+\toprule
+\textbf{Métrique} & \textbf{Description} \\
+\midrule
+\texttt{total\_requests} & Nombre total de requêtes traitées \\
+\texttt{cache\_hits} & Réponses servies depuis le cache TTL \\
+\texttt{deterministic\_fast} & Réponses statiques (robots.txt, favicon) \\
+\texttt{llm\_success} & Appels LLM réussis \\
+\texttt{llm\_timeout} & Appels LLM ayant dépassé le délai \\
+\texttt{llm\_error} & Erreurs d'API NVIDIA \\
+\texttt{fallback} & Réponses de secours (HTML générique) \\
+\bottomrule
+\end{tabular}
+\caption{Métriques du LLMOrchestrator}
+\end{table}
+
+% ============================================================
+\section{Alignement MITRE ATT\&CK}
+% ============================================================
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{ID MITRE} & \textbf{Technique} & \textbf{Détection GhostNet} \\
+\midrule
+T1190 & Exploit Public-Facing App & Capture HTTP sur port 80 \\
+T1110 & Brute Force & Récolte d'identifiants sur \texttt{/login} \\
+T1046 & Network Scanning & Détection User-Agent (Nikto, Nmap) \\
+T1005 & Data from Local System & Faux fichiers \texttt{.env}, \texttt{.sql} \\
+T1071 & Application Layer Protocol & Analyse du trafic SSH/HTTP \\
+T1059 & Command \& Scripting & Capture des commandes SSH via Cowrie \\
+\bottomrule
+\end{tabularx}
+\caption{Mapping MITRE ATT\&CK des capacités de détection}
+\end{table}
+
+% ============================================================
+\section{Conclusion}
+% ============================================================
+
+GhostNet représente une fusion innovante entre l'intelligence artificielle générative et l'ingénierie de sécurité offensive. En utilisant un modèle Llama 3.1 8B Instruct via l'infrastructure NVIDIA NIM, le système atteint un équilibre optimal entre :
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Réalisme} : Émulation fidèle d'un serveur Ubuntu 14.04 avec Apache et PHP.
+    \item \textbf{Performance} : Latence $<$ 500ms grâce au modèle 8B et au cache TTL.
+    \item \textbf{Sécurité} : 5 couches de défense protégeant le honeypot contre l'exploitation.
+    \item \textbf{Intelligence} : Journalisation structurée JSON vers Wazuh SIEM pour analyse SOC.
+\end{itemize}
+
+\end{document}

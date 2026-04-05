@@ -1,10 +1,10 @@
 # OS / editor
 .DS_Store
 Thumbs.db
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
-!.vscode/tasks.json
+.vscode/
+.idea/
+*.swp
+*.tmp
 
 # Python
 __pycache__/
@@ -17,9 +17,14 @@ venv/
 # Environment / secrets
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 *.crt
+# IMPORTANT: LLM Configs contain API Keys
+configs/cowrie.cfg
+archive_private/
+.secrets_backup/
 
 # Runtime data and artifacts
 logs/**
@@ -38,6 +43,7 @@ ollama_data/**
 # Build / temp
 *.tmp
 *.swp
+.venv-ssh-test/
 
 # Large third-party stack snapshot (track separately)
 wazuh/wazuh-docker/

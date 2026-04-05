@@ -1,0 +1,220 @@
+\documentclass[11pt,a4paper,oneside]{article}
+
+% ==========================================
+% CORE PACKAGES & VISUAL STYLE
+% ==========================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+\usepackage[margin=1.8cm, top=1.5cm, bottom=2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable,raster,shadows}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{fontawesome5}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning, shadow, shadows.blur, calc, backgrounds}
+
+% --- REFINED TECH COLOR PALETTE ---
+\definecolor{NavyDark}{RGB}{10, 25, 47}    % Elite Industry Navy
+\definecolor{CyberGold}{RGB}{200, 160, 60} % Premium Gold Accent
+\definecolor{GhostWhite}{RGB}{248, 249, 250}
+\definecolor{CodeBack}{RGB}{15, 17, 26}     % Terminal Dark Blue-Black
+\definecolor{WarningRed}{RGB}{210, 4, 45}
+
+% ==========================================
+% LAYOUT CUSTOMIZATION
+% ==========================================
+\hypersetup{colorlinks=true, linkcolor=NavyDark, urlcolor=CyberGold}
+
+% CUSTOM SECTION HEADERS
+\titleformat{\section}{\Large\bfseries\color{NavyDark}}{}{0em}
+{\begin{tikzpicture}[baseline=(char.base)]
+    \node(char)[fill=NavyDark, text=CyberGold, font=\bfseries\small, inner sep=3pt, rounded corners=1pt] {\thesection};
+\end{tikzpicture}\hspace{0.5em}}
+
+\titleformat{\subsection}{\large\bfseries\color{NavyDark}}{}{0em}
+{\textcolor{CyberGold}{\faAngleDoubleRight} \hspace{0.2em}}
+
+% LIST STYLING
+\setlist[description]{leftmargin=1em, font=\bfseries\color{CyberGold}}
+\setlist[itemize]{label=\textcolor{CyberGold}{\faCaretRight}, leftmargin=1.5em}
+
+% --- REUSABLE BOXES ---
+\newtcolorbox{cyberbox}[1]{
+    enhanced,
+    colback=white,
+    colframe=NavyDark,
+    coltitle=CyberGold,
+    fonttitle=\bfseries\large,
+    title=#1,
+    arc=3mm,
+    boxrule=1.2pt,
+    drop shadow={black!15},
+    attach boxed title to top left={xshift=10pt, yshift=-10pt},
+    boxed title style={colback=NavyDark, colframe=NavyDark, arc=1mm}
+}
+
+\newtcolorbox{terminalbox}[1]{
+    enhanced,
+    colback=CodeBack,
+    coltext=white,
+    colframe=gray!40,
+    fontupper=\small\ttfamily,
+    title=\textcolor{gray!80}{\faTerminal \hspace{1mm} \texttt{#1}},
+    toptitle=1mm,
+    bottomtitle=1mm,
+    arc=1.5mm,
+    boxrule=0.6pt,
+    left=3mm,
+    shadow={1mm}{-1mm}{0mm}{black!30}
+}
+
+\newtcolorbox{conceptcard}[2]{
+    enhanced,
+    width=#1,
+    colback=GhostWhite,
+    colframe=NavyDark!10,
+    boxrule=0.5pt,
+    arc=2mm,
+    fontupper=\small,
+    title=\textcolor{NavyDark}{\bfseries #2},
+    detach title,
+    before upper={\textcolor{NavyDark}{\faInfoCircle \hspace{1mm} \textbf{#2}}\\[2mm]}
+}
+
+% ==========================================
+% DOCUMENT CONTENT START
+% ==========================================
+\begin{document}
+
+% --- HERO HEADER ---
+\begin{center}
+    \begin{tikzpicture}
+        \node[fill=NavyDark, text=white, inner sep=20pt, rounded corners=5mm, align=center, blur shadow, minimum width=0.9\textwidth] (hero) {
+            \Huge \textbf{GHOSTNET PROJECT REPORT} \\
+            \large \textcolor{CyberGold}{Cognitive Deception Operations \& AI-Powered Honeypots} \\
+            \vspace{2mm}
+            \small \faCodeBranch \hspace{1mm} v2.4.0 \hspace{3mm} \faCloud \hspace{1mm} NVIDIA NIM Enabled \hspace{3mm} \faShieldAlt \hspace{1mm} Zero-Trust Secured
+        };
+    \end{tikzpicture}
+    \vspace{0.8cm}
+\end{center}
+
+% --- PHASE 1: THE MISSION ---
+\section{Project Identity \& Problem Statement}
+\begin{tcolorbox}[colback=GhostWhite, colframe=NavyDark, boxrule=0.5pt, arc=3mm]
+    \textbf{The Challenge:} Modern cyber-adversaries can detect traditional, static honeypots within minutes of interaction. Predictable file systems, hardcoded responses, and lack of true "interaction depth" make deception easy to bypass. \\
+    \textbf{The Mission:} GhostNet was engineered to create a \textbf{Living Infrastructure} that hallucinates realistic responses in real-time, effectively trapping human and automated attackers in an infinite, deceptive maze.
+\end{tcolorbox}
+
+\begin{tcbraster}[raster columns=3, raster gutter=4mm]
+    \begin{conceptcard}{\linewidth}{Unpredictable}
+        Responses change based on the attacker's trajectory, making fingerprinting impossible.
+    \end{conceptcard}
+    \begin{conceptcard}{\linewidth}{Scalable}
+        Built on Docker/SOA, handling multiple protocols (HTTP/SSH) simultaneously.
+    \end{conceptcard}
+    \begin{conceptcard}{\linewidth}{Low-Cost}
+        Leverages existing LLM models with smart caching to protect your budget.
+    \end{conceptcard}
+\end{tcbraster}
+
+\vspace{0.6cm}
+
+% --- PHASE 2: CORE ARCHITECTURE ---
+\section{Technical Architecture: The Hybrid Engine}
+GhostNet merges high-performance Python backends with advanced LLM reasoning. This hybrid approach ensures that the "server" feels robust and stable, while the "content" feels uniquely creative and realistic.
+
+\begin{center}
+\begin{tikzpicture}[node distance=2cm, every node/.style={font=\sffamily\footnotesize}]
+    % External
+    \node (attacker) [draw=WarningRed, thick, fill=WarningRed!5, rounded corners, minimum width=2.4cm] {\Large\faUserSecret \\ Hacker};
+    
+    % Layer 1
+    \node (proxy) [draw=NavyDark, right of=attacker, xshift=2cm, fill=NavyDark!5, rounded corners, minimum width=2.4cm] {\Large\faShieldAlt \\ Proxy Guard};
+    
+    % Layer 2
+    \node (http) [draw, above right of=proxy, xshift=1.5cm, yshift=0.5cm, rounded corners, fill=GhostWhite] {\faGlobe \\ HTTP Trap};
+    \node (ssh) [draw, below right of=proxy, xshift=1.5cm, yshift=-0.5cm, rounded corners, fill=GhostWhite] {\faTerminal \\ SSH Trap};
+    
+    % Brain
+    \node (llm) [draw=CyberGold, thick, right of=proxy, xshift=5.3cm, fill=CyberGold!10, rounded corners, minimum width=3cm, minimum height=1.5cm] {\Large\faBrain \\ \textbf{AI ORCHESTRATOR} \\ (Llama 3.1 8B)};
+
+    % CONNECTIONS
+    \draw[->, thick] (attacker) -- node[above] {Intent Analysis} (proxy);
+    \draw[->, thick] (proxy) |- (http);
+    \draw[->, thick] (proxy) |- (ssh);
+    \draw[->, thick, NavyDark] (http) -- node[above] {REST API} (llm);
+    \draw[->, thick, NavyDark] (ssh) -- node[below] {Session Data} (llm);
+    
+    \begin{pgfonlayer}{background}
+        \node[fill=gray!5, draw=gray, dashed, inner sep=15pt, rounded corners, fit=(http) (ssh) (llm)] (core) {};
+        \node[anchor=north east, gray] at (core.north east) {\textbf{INTERNAL GRID}};
+    \end{pgfonlayer}
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.6cm}
+
+% --- PHASE 3: INTERACTIVE CAPABILITIES ---
+\section{Operational Showcase: Real-World Scenarios}
+How does GhostNet behave under fire? We've tested multiple attack vectors to ensure the highest level of realism.
+
+\subsection{Scenario A: Advanced File Discovery (HTTP)}
+When an attacker scans for database dumps or config files, GhostNet doesn't just return a 404. It generates a \textbf{Format-Perfect} response tailored to the filename.
+
+\begin{terminalbox}{Attacker tries: curl http://server/production_db.sql}
+-- MySQL dump 10.13  Distrib 8.0.26 \\
+-- Table structure for table `users` \\
+CREATE TABLE `users` ( \\
+  `id` int NOT NULL, \\
+  `username` varchar(50), \\
+  `password` varchar(100)  -- SHA256 hashes generated dynamically \\
+); \\
+INSERT INTO `users` VALUES (1, 'root', '8c6976e5b54...'), (2, 'support', 'a665a45...')...
+\end{terminalbox}
+
+\subsection{Scenario B: Deep SSH Exploration}
+Unlike traditional SSH honeypots that break after 2 commands, GhostNet supports **Recursive Navigation**. Our custom Python controller manages the state, while the AI manages the imagination.
+
+\begin{terminalbox}{Interactive Session Example}
+root@prod-server-01:/# cd /etc/shadow-backups \\
+root@prod-server-01:/etc/shadow-backups# ls -la \\
+-rw------- 1 root root  1248 Oct 12 14:22 passwd_2023.bak \\
+-rw------- 1 root root  1562 Oct 12 14:23 shadow_2023.bak \\
+root@prod-server-01:/etc/shadow-backups# cat shadow_2023.bak \\
+root:$6$S.Vz/8vW$mYmE...:19642:0:99999:7::: \\
+deployer:$6$3pZ7.k8i$9QoU...:19642:0:99999:7:::
+\end{terminalbox}
+
+\vspace{0.6cm}
+
+% --- PHASE 4: THE SECURITY LAYER ---
+\section{Protection \& Monitoring: Scaling Responsibly}
+Deploying an LLM in a public environment is risky. GhostNet implements a three-tier protection strategy:
+
+\begin{enumerate}
+    \item \textbf{Financial Safety (Rate Limiting):} Intelligent memory-buckets block automated scanners from exhausting API tokens. We prioritize human detection.
+    \item \textbf{Injection Guard (Prompt Sanitization):} Incoming paths and commands are scanned for "LLM jailbreak" attempts, ensuring the model stays in its role.
+    \item \textbf{Zero-Maintenance State Persistence:} The Python core manages the directory structure (`cd`, `pwd`), ensuring 100\% consistency while the model handles file content.
+\end{enumerate}
+
+\vspace{1cm}
+
+% --- CLOSING FOOTER ---
+\begin{cyberbox}{Project Conclusion}
+    \noindent GhostNet shifts the burden of work to the attacker. By providing an infinite, realistic, and cheap-to-run deception environment, we turn every intrusion attempt into a valuable \textbf{Threat Intelligence} opportunity.
+    \vspace{2mm} \\
+    \textit{Securing the future, one hallucination at a time.}
+\end{cyberbox}
+
+\begin{center}
+    \small \textcolor{gray}{\textit{GhostNet Infrastructure Report - Confidential / Technical Showcase}}
+\end{center}
+
+\end{document}
