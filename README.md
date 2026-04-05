@@ -1,18 +1,37 @@
-# 🕸️ Project GhostNet: Intelligent Multi-Agent LLM Honeypot
+# 🕸️ Project GhostNet: Cognitive LLM-Powered Deception
+GhostNet is an advanced, high-fidelity deception platform that uses **Groq-accelerated LLMs** (Moonshot Kimi-k2) to hallucinate realistic, stateful attack surfaces in real-time. It traps attackers in an infinite, semi-autonomous maze while streaming full telemetry to a centralized **Wazuh SIEM**.
 
-An advanced, medium-interaction deception platform. We use **Cowrie**, **FastAPI**, and localized **LLM generation (Ollama)** under strict policy guardrails to keep attackers engaged inside a simulated environment, while simultaneously broadcasting threat intelligence to a centralized SIEM (**Wazuh** / **MQTT**).
+## 🚀 Quick Start
 
-## Getting Started
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/GhostNet.git
+   cd GhostNet
+   ```
 
-1. **Read the Master Plan**  
-   All team members should start by reading the unified execution plan here:  
-   👉 [**PROJECT_MASTER_PLAN.md**](PROJECT_MASTER_PLAN.md)
+2. **Configure Environment**
+   Copy the example environment file and add your Groq API key:
+   ```bash
+   cp .env.example .env
+   # Edit .env and add GROQ_API_KEY
+   ```
 
-2. **Daily Runbooks & Setup**  
-   Check the `docs/day-01/` directory for bootstrap scripts and specific VM installation notes.
-   
-3. **Old Plans Archive**  
-   All previous architectural drafts and ideation documents have been safely archived to `docs/archive_old_plans/` to clean up the workspace.
+3. **Deploy with Docker**
+   ```bash
+   docker compose up -d --build
+   ```
 
-## License & Safety Notice
-⚠️ This is an active deception lab. Do not host these services un-sandboxed on the public internet. Observe traffic in Host-Only or strictly firewalled NAT environments.
+## 🛠️ Core Capabilities
+*   **Cognitive SSH (Cowrie + Groq):** Fully interactive Bash shell that hallucinates file systems, scripts, and logs in real-time.
+*   **Dynamic HTTP (FastAPI):** Adaptive web portal that generates realistic configuration files, database dumps, and API responses.
+*   **Zero-Leaking Deception:** Custom Python filters strip model-specific reasoning tags, ensuring the attacker only sees raw terminal output.
+*   **SIEM Integration:** Native integration with Wazuh for real-time alerting and threat analysis.
+
+## 📁 Repository Structure
+*   `configs/`: Global honeypot behavior and protocol definitions.
+*   `honeypot/`: Core service source code (HTTP/Agent).
+*   `infra/`: SIEM and monitoring configuration (Wazuh/Grafana).
+*   `docs/`: Detailed architectural reports and PDF technical specifications.
+
+## ⚠️ Safety Notice
+This is an active deception lab. Do not host these services un-sandboxed on the public internet. Observe traffic in Host-Only or strictly firewalled environments.
