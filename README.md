@@ -5,7 +5,7 @@ GhostNet is an advanced, high-fidelity deception platform that uses **Groq-accel
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/GhostNet.git
+   git clone https://github.com/khalilammarr/LLM_Honeypot.git
    cd GhostNet
    ```
 
