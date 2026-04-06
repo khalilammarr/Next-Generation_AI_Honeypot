@@ -54,6 +54,22 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     restart: always
+
+  # GhostNet Control Center (Analysis Dashboard)
+  analysis-ui:
+    build:
+      context: .
+      dockerfile: ./dashboard/Dockerfile
+    container_name: ghostnet-dashboard
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/log/cowrie:/var/log/cowrie
+      - .:/app
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_MODEL=${GROQ_MODEL:-moonshotai/kimi-k2-instruct}
+    restart: always
     
 volumes:
   cowrie-var:

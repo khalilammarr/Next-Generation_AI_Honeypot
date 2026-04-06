@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GhostNet Analysis Console</title>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #fff7e8;
+            --ink: #1e1a14;
+            --muted: #6e5f4a;
+            --card: #ffffff;
+            --line: #ead8b7;
+            --brand: #d38a10;
+            --brand-ink: #9b6200;
+            --warm: #a66700;
+            --danger: #b91c1c;
+            --shadow: 0 12px 30px rgba(147, 92, 0, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Manrope', sans-serif;
+            color: var(--ink);
+            min-height: 100vh;
+            background:
+                radial-gradient(900px 380px at 8% -8%, rgba(211, 138, 16, 0.23), transparent 60%),
+                radial-gradient(700px 300px at 92% 0%, rgba(173, 106, 6, 0.18), transparent 65%),
+                var(--bg);
+        }
+
+        header {
+            padding: 1.1rem 1.6rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e7d0a6;
+            background: rgba(255, 250, 240, 0.86);
+            backdrop-filter: blur(8px);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            font-family: 'JetBrains Mono', monospace;
+            color: #5e3a00;
+        }
+
+        .sys-info {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.76rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--muted);
+        }
+        .sys-info span { color: var(--brand-ink); font-weight: 700; }
+
+        .main-layout {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1.2rem;
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+            gap: 1rem;
+        }
+
+        .sessions-panel {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            box-shadow: var(--shadow);
+            padding: 1.1rem;
+            overflow-y: auto;
+            min-height: 76vh;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 0.9rem;
+        }
+        .panel-header h2 {
+            font-size: 0.9rem;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .panel-header div {
+            font-size: 0.72rem;
+            color: var(--brand-ink);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            text-align: left;
+            padding: 0.65rem;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            border-bottom: 1px solid var(--line);
+        }
+        
+        tr { transition: background 0.2s ease, transform 0.2s ease; cursor: pointer; }
+        td { 
+            padding: 0.88rem 0.65rem;
+            background: transparent;
+            border-bottom: 1px solid #f3e5cc;
+        }
+        tr:hover td { background: rgba(211, 138, 16, 0.09); }
+        tr.active td {
+            background: rgba(211, 138, 16, 0.18);
+            font-weight: 600;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.22rem 0.54rem;
+            border-radius: 999px;
+            font-size: 0.66rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            font-family: 'JetBrains Mono', monospace;
+            border: 1px solid transparent;
+        }
+        .badge-ssh { color: #875102; background: #fff1d1; border-color: #ffd086; }
+        .badge-http { color: #7c5900; background: #ffefcc; border-color: #ffd086; }
+        .badge-risk-critical { background: #fee2e2; color: var(--danger); border-color: #fecaca; }
+
+        .inspector-panel {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            padding: 1.1rem;
+            min-height: 76vh;
+        }
+
+        .inspector-panel h2 {
+            font-size: 0.92rem;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+
+        #inspector-msg {
+            margin-top: 0.7rem;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .timeline {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            padding-right: 0.4rem;
+        }
+        .timeline-line {
+            padding: 0.75rem 0.75rem 0.75rem 0.95rem;
+            border-left: 2px solid #d1e7e7;
+            margin-bottom: 0.55rem;
+            position: relative;
+            background: #fff8ea;
+            border-radius: 0 10px 10px 0;
+        }
+        .timeline-line::before {
+            content: "";
+            position: absolute;
+            left: -5px;
+            top: 0.98rem;
+            width: 8px;
+            height: 8px;
+            background: var(--brand);
+            border-radius: 50%;
+        }
+        .timeline-line .time {
+            font-size: 0.62rem;
+            color: var(--muted);
+            display: block;
+            margin-bottom: 0.32rem;
+        }
+
+        .action-area {
+            margin-top: 0.85rem;
+            padding-top: 0.85rem;
+            border-top: 1px solid var(--line);
+        }
+
+        .btn-cyber {
+            width: 100%;
+            padding: 0.88rem;
+            background: linear-gradient(180deg, #e0a327, #c48108);
+            border: 1px solid #bc7807;
+            color: #ffffff;
+            border-radius: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .btn-cyber:hover:not(:disabled) {
+            box-shadow: 0 10px 22px rgba(188, 120, 7, 0.3);
+            transform: translateY(-2px);
+        }
+        .btn-cyber:disabled {
+            opacity: 0.56;
+            pointer-events: none;
+            box-shadow: none;
+        }
+
+        .analysis-card {
+            margin-top: 0.85rem;
+            background: #ffefcf;
+            border: 1px solid #ffd494;
+            padding: 0.9rem;
+            border-radius: 10px;
+            animation: slideUp 0.35s ease;
+            display: none;
+        }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .analysis-card h3 {
+            font-size: 0.74rem;
+            color: var(--warm);
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+        .analysis-card p {
+            font-size: 0.96rem;
+            line-height: 1.5;
+            color: #1f2937;
+        }
+
+        #mitre-strip {
+            margin-top: 0.8rem;
+            display: flex;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        @media (max-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sessions-panel,
+            .inspector-panel {
+                min-height: auto;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">GhostNet Analysis Console</div>
+        <div class="sys-info">
+            <div>NODE: <span>ARCH_PROD_01</span></div>
+            <div>STATUS: <span style="color: #4ade80;">ONLINE</span></div>
+            <div>MODE: <span>INTERACTIVE</span></div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <div class="sessions-panel">
+            <div class="panel-header">
+                <h2>Sessions</h2>
+                <div>ACTIVE: <span id="session-count">0</span></div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th width="120">Proto</th>
+                        <th>Source</th>
+                        <th width="200">Timestamp</th>
+                        <th width="150" style="text-align: right;">Risk</th>
+                    </tr>
+                </thead>
+                <tbody id="sessions-body"></tbody>
+            </table>
+        </div>
+
+        <div class="inspector-panel">
+            <h2>Session Detail</h2>
+            <div id="inspector-msg">[WAITING_FOR_SELECTION]</div>
+            
+            <div id="timeline" class="timeline"></div>
+
+            <div class="action-area">
+                <div id="analysis-card" class="analysis-card">
+                    <h3>Threat Summary</h3>
+                    <p id="analysis-text"></p>
+                    <div id="mitre-strip"></div>
+                </div>
+
+                <button id="analyze-btn" class="btn-cyber" style="display: none;">
+                    Analyze Session
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedId = null;
+
+        async function fetchSessions() {
+            const res = await fetch('/api/sessions');
+            if (!res.ok) {
+                throw new Error('Failed to fetch sessions');
+            }
+            const data = await res.json();
+            document.getElementById('session-count').innerText = data.length;
+            const body = document.getElementById('sessions-body');
+            body.innerHTML = '';
+
+            data.forEach(s => {
+                const tr = document.createElement('tr');
+                if (selectedId === s.session_id) tr.classList.add('active');
+                tr.onclick = () => selectSession(s.session_id, s.ip_address);
+                const risk = (s.risk_level || 'unknown').toLowerCase();
+                tr.innerHTML = `
+                    <td><span class="badge badge-${(s.protocol || 'ssh').toLowerCase()}">${s.protocol || 'SSH'}</span></td>
+                    <td><span class="mono">${s.ip_address || '-'}</span></td>
+                    <td style="color: var(--muted); font-size: 0.75rem;">${new Date(s.start_time).toLocaleString()}</td>
+                    <td style="text-align: right;"><span class="badge ${risk === 'critical' ? 'badge-risk-critical' : ''}">${risk.toUpperCase()}</span></td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        async function selectSession(id, ip) {
+            selectedId = id;
+            await fetchSessions();
+            document.getElementById('inspector-msg').innerText = `TARGET_ORIGIN: ${ip}`;
+            document.getElementById('analyze-btn').style.display = 'block';
+            document.getElementById('analysis-card').style.display = 'none';
+
+            const res = await fetch(`/api/sessions/${id}/events`);
+            if (!res.ok) {
+                document.getElementById('inspector-msg').innerText = '[EVENT_STREAM_UNAVAILABLE]';
+                return;
+            }
+            const events = await res.json();
+            const container = document.getElementById('timeline');
+            container.innerHTML = '';
+
+            events.forEach(e => {
+                const div = document.createElement('div');
+                div.className = 'timeline-line';
+                div.innerHTML = `
+                    <span class="time">${new Date(e.timestamp).toLocaleTimeString()}</span>
+                    <span style="color: var(--brand-ink)">$ </span> ${e.raw_data || ''}
+                `;
+                container.appendChild(div);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        document.getElementById('analyze-btn').onclick = async () => {
+            const btn = document.getElementById('analyze-btn');
+            btn.disabled = true;
+            btn.innerText = "Analyzing...";
+
+            try {
+                const res = await fetch(`/api/sessions/${selectedId}/analyze`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || 'analysis failed');
+                }
+
+                document.getElementById('analysis-text').innerText = data.summary || 'No summary available.';
+                const mitre = document.getElementById('mitre-strip');
+                mitre.innerHTML = '';
+                const mappings = Array.isArray(data.mitre_mapping) ? data.mitre_mapping : [];
+                mappings.forEach(m => {
+                    const s = document.createElement('span');
+                    s.className = 'badge';
+                    s.style.background = '#ffecca';
+                    s.style.color = '#8a5a00';
+                    s.style.borderColor = '#ffd58a';
+                    s.innerText = m;
+                    mitre.appendChild(s);
+                });
+
+                document.getElementById('analysis-card').style.display = 'block';
+                await fetchSessions();
+            } catch (e) {
+                document.getElementById('inspector-msg').innerText = `[ANALYSIS_ERROR] ${e.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Analyze Session";
+            }
+        };
+
+        fetchSessions().catch(() => {
+            document.getElementById('inspector-msg').innerText = '[UPLINK_FAILURE]';
+        });
+        setInterval(() => {
+            fetchSessions().catch(() => {});
+        }, 5000);
+    </script>
+</body>
+</html>
