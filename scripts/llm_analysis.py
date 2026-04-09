@@ -7,7 +7,7 @@ from openai import OpenAI
 
 # Add paths to find session_db
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'honeypot', 'analysis')))
-from session_db import SessionDB
+from honeypot.analysis.session_db import SessionDB
 
 # Load API Key from .env
 from dotenv import load_dotenv
