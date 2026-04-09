@@ -1,430 +1,765 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GhostNet Analysis Console</title>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #fff7e8;
-            --ink: #1e1a14;
-            --muted: #6e5f4a;
-            --card: #ffffff;
-            --line: #ead8b7;
-            --brand: #d38a10;
-            --brand-ink: #9b6200;
-            --warm: #a66700;
-            --danger: #b91c1c;
-            --shadow: 0 12px 30px rgba(147, 92, 0, 0.12);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GhostNet — Cyber Threat Intelligence Console</title>
+<meta name="description" content="GhostNet honeypot analysis console — real-time attacker session monitoring, LLM-powered threat intelligence, and MITRE ATT&CK mapping.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:        #0a0e1a;
+  --bg2:       #0f1629;
+  --bg3:       #111827;
+  --panel:     rgba(15,22,41,0.85);
+  --border:    rgba(6,182,212,0.18);
+  --border2:   rgba(6,182,212,0.35);
+  --cyan:      #06b6d4;
+  --cyan-dim:  rgba(6,182,212,0.12);
+  --emerald:   #10b981;
+  --violet:    #8b5cf6;
+  --amber:     #f59e0b;
+  --red:       #ef4444;
+  --text:      #e2e8f0;
+  --muted:     #64748b;
+  --mono:      'JetBrains Mono', monospace;
+  --sans:      'Inter', sans-serif;
+  --radius:    14px;
+  --shadow:    0 8px 32px rgba(0,0,0,0.5);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 10% 0%, rgba(6,182,212,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 30% at 90% 100%, rgba(139,92,246,0.06) 0%, transparent 60%);
+}
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: 'Manrope', sans-serif;
-            color: var(--ink);
-            min-height: 100vh;
-            background:
-                radial-gradient(900px 380px at 8% -8%, rgba(211, 138, 16, 0.23), transparent 60%),
-                radial-gradient(700px 300px at 92% 0%, rgba(173, 106, 6, 0.18), transparent 65%),
-                var(--bg);
-        }
+/* ── HEADER ── */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.85rem 2rem;
+  border-bottom:1px solid var(--border);
+  background:rgba(10,14,26,0.92);
+  backdrop-filter:blur(12px);
+  position:sticky;top:0;z-index:100;
+}
+.logo{
+  display:flex;align-items:center;gap:.6rem;
+  font-family:var(--mono);font-size:1rem;font-weight:700;
+  color:var(--cyan);letter-spacing:2px;
+}
+.logo-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--cyan);
+  box-shadow:0 0 10px var(--cyan);
+  animation:pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
+.header-badges{display:flex;gap:.6rem;align-items:center;}
+.hbadge{
+  font-family:var(--mono);font-size:.65rem;font-weight:500;
+  padding:.2rem .6rem;border-radius:6px;letter-spacing:.05em;
+  border:1px solid;
+}
+.hbadge-online{color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.08);}
+.hbadge-mode{color:var(--cyan);border-color:var(--border);background:var(--cyan-dim);}
+#clock{font-family:var(--mono);font-size:.7rem;color:var(--muted);}
 
-        header {
-            padding: 1.1rem 1.6rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #e7d0a6;
-            background: rgba(255, 250, 240, 0.86);
-            backdrop-filter: blur(8px);
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
+/* ── LAYOUT ── */
+.layout{max-width:1440px;margin:0 auto;padding:1.5rem;display:flex;flex-direction:column;gap:1.2rem;}
 
-        .logo {
-            font-size: 1.2rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            font-family: 'JetBrains Mono', monospace;
-            color: #5e3a00;
-        }
+/* ── STATS ROW ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;}
+.stat-card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--radius);padding:1.2rem 1.4rem;
+  backdrop-filter:blur(12px);
+  position:relative;overflow:hidden;
+  transition:border-color .3s,transform .3s;
+}
+.stat-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.stat-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(6,182,212,.04) 0%,transparent 60%);
+  pointer-events:none;
+}
+.stat-label{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.5rem;}
+.stat-value{font-family:var(--mono);font-size:2rem;font-weight:700;color:var(--text);line-height:1;}
+.stat-icon{position:absolute;right:1.2rem;top:1.2rem;font-size:1.4rem;opacity:.15;}
+.stat-sub{font-size:.7rem;color:var(--muted);margin-top:.35rem;}
+.stat-card.cyan .stat-value{color:var(--cyan);}
+.stat-card.red   .stat-value{color:var(--red);}
+.stat-card.green .stat-value{color:var(--emerald);}
+.stat-card.violet .stat-value{color:var(--violet);}
 
-        .sys-info {
-            display: flex;
-            gap: 1rem;
-            font-size: 0.76rem;
-            font-family: 'JetBrains Mono', monospace;
-            color: var(--muted);
-        }
-        .sys-info span { color: var(--brand-ink); font-weight: 700; }
+/* ── CHARTS ROW ── */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.chart-card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--radius);padding:1.2rem 1.4rem;
+  backdrop-filter:blur(12px);
+}
+.chart-card-title{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:1rem;}
+.chart-wrap{position:relative;height:180px;}
 
-        .main-layout {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 1.2rem;
-            display: grid;
-            grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
-            gap: 1rem;
-        }
+/* ── MAIN GRID ── */
+.main-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:1rem;align-items:start;}
 
-        .sessions-panel {
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            box-shadow: var(--shadow);
-            padding: 1.1rem;
-            overflow-y: auto;
-            min-height: 76vh;
-        }
+/* ── SESSIONS PANEL ── */
+.panel{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--radius);backdrop-filter:blur(12px);
+  overflow:hidden;
+}
+.panel-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.9rem 1.2rem;border-bottom:1px solid var(--border);
+}
+.panel-title{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);}
+.panel-meta{font-family:var(--mono);font-size:.68rem;color:var(--cyan);}
 
-        .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            margin-bottom: 0.9rem;
-        }
-        .panel-header h2 {
-            font-size: 0.9rem;
-            letter-spacing: 0.06em;
-            color: var(--muted);
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-        .panel-header div {
-            font-size: 0.72rem;
-            color: var(--brand-ink);
-            font-family: 'JetBrains Mono', monospace;
-        }
+/* search */
+.search-wrap{padding:.7rem 1.2rem;border-bottom:1px solid var(--border);}
+#search{
+  width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);
+  border-radius:8px;padding:.5rem .8rem;color:var(--text);
+  font-family:var(--mono);font-size:.75rem;outline:none;
+  transition:border-color .2s;
+}
+#search:focus{border-color:var(--border2);}
+#search::placeholder{color:var(--muted);}
 
-        table { width: 100%; border-collapse: collapse; }
-        th {
-            text-align: left;
-            padding: 0.65rem;
-            font-size: 0.68rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--muted);
-            border-bottom: 1px solid var(--line);
-        }
-        
-        tr { transition: background 0.2s ease, transform 0.2s ease; cursor: pointer; }
-        td { 
-            padding: 0.88rem 0.65rem;
-            background: transparent;
-            border-bottom: 1px solid #f3e5cc;
-        }
-        tr:hover td { background: rgba(211, 138, 16, 0.09); }
-        tr.active td {
-            background: rgba(211, 138, 16, 0.18);
-            font-weight: 600;
-        }
+/* table */
+.sessions-table{width:100%;border-collapse:collapse;}
+.sessions-table th{
+  padding:.65rem 1.2rem;font-size:.62rem;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--muted);font-weight:600;
+  border-bottom:1px solid var(--border);text-align:left;
+}
+.sessions-table td{
+  padding:.75rem 1.2rem;border-bottom:1px solid rgba(255,255,255,.04);
+  font-size:.78rem;vertical-align:middle;
+}
+.sessions-table tbody tr{cursor:pointer;transition:background .15s;}
+.sessions-table tbody tr:hover td{background:rgba(6,182,212,.05);}
+.sessions-table tbody tr.active td{background:rgba(6,182,212,.1);}
 
-        .badge {
-            display: inline-block;
-            padding: 0.22rem 0.54rem;
-            border-radius: 999px;
-            font-size: 0.66rem;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            font-family: 'JetBrains Mono', monospace;
-            border: 1px solid transparent;
-        }
-        .badge-ssh { color: #875102; background: #fff1d1; border-color: #ffd086; }
-        .badge-http { color: #7c5900; background: #ffefcc; border-color: #ffd086; }
-        .badge-risk-critical { background: #fee2e2; color: var(--danger); border-color: #fecaca; }
+/* risk badges */
+.badge{
+  display:inline-block;padding:.18rem .5rem;border-radius:6px;
+  font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.04em;
+  border:1px solid transparent;
+}
+.r-critical{color:#ef4444;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);}
+.r-high    {color:#f97316;background:rgba(249,115,22,.12);border-color:rgba(249,115,22,.3);}
+.r-medium  {color:#eab308;background:rgba(234,179, 8,.12);border-color:rgba(234,179, 8,.3);}
+.r-low     {color:#22c55e;background:rgba(34,197,94,.12);border-color:rgba(34,197, 94,.3);}
+.r-unknown {color:var(--muted);background:rgba(100,116,139,.12);border-color:rgba(100,116,139,.3);}
+.proto-ssh {color:#06b6d4;background:rgba(6,182,212,.1);border-color:rgba(6,182,212,.25);}
+.proto-http{color:var(--violet);background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.25);}
 
-        .inspector-panel {
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            box-shadow: var(--shadow);
-            display: flex;
-            flex-direction: column;
-            padding: 1.1rem;
-            min-height: 76vh;
-        }
+/* ── INSPECTOR PANEL ── */
+.inspector{display:flex;flex-direction:column;gap:0;}
+.inspector-body{padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:.9rem;}
 
-        .inspector-panel h2 {
-            font-size: 0.92rem;
-            letter-spacing: 0.05em;
-            color: var(--muted);
-            text-transform: uppercase;
-        }
+.empty-state{
+  padding:3rem 1.2rem;text-align:center;
+  font-family:var(--mono);font-size:.75rem;color:var(--muted);
+}
+.empty-icon{font-size:2.5rem;opacity:.2;margin-bottom:.8rem;}
 
-        #inspector-msg {
-            margin-top: 0.7rem;
-            color: var(--muted);
-            font-size: 0.78rem;
-            font-family: 'JetBrains Mono', monospace;
-        }
+/* session meta */
+.inspector-meta{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;}
+.meta-item{background:rgba(255,255,255,.03);border-radius:8px;padding:.55rem .7rem;border:1px solid var(--border);}
+.meta-label{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.2rem;}
+.meta-value{font-family:var(--mono);font-size:.75rem;color:var(--text);}
 
-        .timeline {
-            flex: 1;
-            overflow-y: auto;
-            margin-top: 1rem;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.78rem;
-            padding-right: 0.4rem;
-        }
-        .timeline-line {
-            padding: 0.75rem 0.75rem 0.75rem 0.95rem;
-            border-left: 2px solid #d1e7e7;
-            margin-bottom: 0.55rem;
-            position: relative;
-            background: #fff8ea;
-            border-radius: 0 10px 10px 0;
-        }
-        .timeline-line::before {
-            content: "";
-            position: absolute;
-            left: -5px;
-            top: 0.98rem;
-            width: 8px;
-            height: 8px;
-            background: var(--brand);
-            border-radius: 50%;
-        }
-        .timeline-line .time {
-            font-size: 0.62rem;
-            color: var(--muted);
-            display: block;
-            margin-bottom: 0.32rem;
-        }
+/* confidence bar */
+.conf-wrap{background:rgba(255,255,255,.03);border-radius:8px;padding:.7rem .8rem;border:1px solid var(--border);}
+.conf-label{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.4rem;display:flex;justify-content:space-between;}
+.conf-track{height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;}
+.conf-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--emerald));border-radius:3px;transition:width .6s ease;}
 
-        .action-area {
-            margin-top: 0.85rem;
-            padding-top: 0.85rem;
-            border-top: 1px solid var(--line);
-        }
+/* timeline */
+.timeline-wrap{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:.4rem;padding-right:.3rem;}
+.timeline-wrap::-webkit-scrollbar{width:3px;}
+.timeline-wrap::-webkit-scrollbar-track{background:transparent;}
+.timeline-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.tl-item{
+  display:flex;flex-direction:column;gap:.2rem;
+  padding:.55rem .7rem;border-radius:8px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  border-left:2px solid var(--cyan);
+  font-family:var(--mono);font-size:.7rem;
+}
+.tl-time{color:var(--muted);font-size:.62rem;}
+.tl-command{color:var(--text);}
+.tl-type-LOGIN .tl-item{border-left-color:var(--emerald);}
+.tl-type-REQUEST .tl-item{border-left-color:var(--violet);}
 
-        .btn-cyber {
-            width: 100%;
-            padding: 0.88rem;
-            background: linear-gradient(180deg, #e0a327, #c48108);
-            border: 1px solid #bc7807;
-            color: #ffffff;
-            border-radius: 10px;
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .btn-cyber:hover:not(:disabled) {
-            box-shadow: 0 10px 22px rgba(188, 120, 7, 0.3);
-            transform: translateY(-2px);
-        }
-        .btn-cyber:disabled {
-            opacity: 0.56;
-            pointer-events: none;
-            box-shadow: none;
-        }
+/* tags */
+.tags-wrap{display:flex;flex-wrap:wrap;gap:.4rem;}
+.tag{
+  font-family:var(--mono);font-size:.62rem;font-weight:500;
+  padding:.2rem .5rem;border-radius:6px;
+  background:rgba(6,182,212,.1);color:var(--cyan);border:1px solid rgba(6,182,212,.25);
+}
 
-        .analysis-card {
-            margin-top: 0.85rem;
-            background: #ffefcf;
-            border: 1px solid #ffd494;
-            padding: 0.9rem;
-            border-radius: 10px;
-            animation: slideUp 0.35s ease;
-            display: none;
-        }
+/* mitre strip */
+.mitre-wrap{display:flex;flex-wrap:wrap;gap:.35rem;}
+.mitre-tag{
+  font-family:var(--mono);font-size:.62rem;font-weight:600;
+  padding:.22rem .55rem;border-radius:6px;
+  background:rgba(139,92,246,.12);color:var(--violet);border:1px solid rgba(139,92,246,.3);
+  cursor:pointer;transition:background .2s;
+}
+.mitre-tag:hover{background:rgba(139,92,246,.25);}
 
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+/* ioc list */
+.ioc-list{display:flex;flex-direction:column;gap:.3rem;}
+.ioc-item{
+  font-family:var(--mono);font-size:.68rem;color:var(--amber);
+  padding:.3rem .6rem;background:rgba(245,158,11,.07);
+  border-radius:6px;border:1px solid rgba(245,158,11,.2);
+  word-break:break-all;
+}
 
-        .analysis-card h3 {
-            font-size: 0.74rem;
-            color: var(--warm);
-            letter-spacing: 0.05em;
-            margin-bottom: 0.5rem;
-            text-transform: uppercase;
-        }
-        .analysis-card p {
-            font-size: 0.96rem;
-            line-height: 1.5;
-            color: #1f2937;
-        }
+/* rec list */
+.rec-list{display:flex;flex-direction:column;gap:.4rem;counter-reset:rec;}
+.rec-item{
+  display:flex;gap:.6rem;align-items:flex-start;
+  font-size:.75rem;color:var(--text);line-height:1.5;
+  padding:.4rem .6rem;background:rgba(16,185,129,.06);
+  border-radius:8px;border:1px solid rgba(16,185,129,.2);
+}
+.rec-num{
+  flex-shrink:0;width:18px;height:18px;border-radius:50%;
+  background:var(--emerald);color:#000;font-size:.6rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;margin-top:1px;
+}
 
-        #mitre-strip {
-            margin-top: 0.8rem;
-            display: flex;
-            gap: 0.45rem;
-            flex-wrap: wrap;
-        }
+/* section heading inside inspector */
+.sec-head{
+  font-size:.62rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted);
+  display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem;
+}
+.sec-head::after{content:'';flex:1;height:1px;background:var(--border);}
 
-        .mono {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.82rem;
-        }
+/* action area */
+.action-area{
+  padding:.9rem 1.2rem;border-top:1px solid var(--border);
+  display:flex;gap:.55rem;flex-direction:column;
+}
+.btn{
+  width:100%;padding:.7rem 1rem;border-radius:10px;font-family:var(--mono);
+  font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  cursor:pointer;border:1px solid transparent;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;gap:.5rem;
+}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{
+  background:linear-gradient(135deg,rgba(6,182,212,.25),rgba(6,182,212,.1));
+  border-color:var(--border2);color:var(--cyan);
+}
+.btn-primary:hover:not(:disabled){background:rgba(6,182,212,.3);box-shadow:0 0 20px rgba(6,182,212,.2);}
+.btn-secondary{
+  background:rgba(255,255,255,.04);border-color:var(--border);color:var(--muted);
+}
+.btn-secondary:hover:not(:disabled){border-color:var(--border2);color:var(--text);}
 
-        @media (max-width: 1024px) {
-            .main-layout {
-                grid-template-columns: 1fr;
-            }
+/* spinner */
+.spinner{width:12px;height:12px;border:2px solid rgba(6,182,212,.3);border-top-color:var(--cyan);border-radius:50%;animation:spin .6s linear infinite;display:none;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
-            .sessions-panel,
-            .inspector-panel {
-                min-height: auto;
-            }
+/* toast */
+#toast{
+  position:fixed;bottom:2rem;right:2rem;z-index:999;
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:10px;padding:.75rem 1.2rem;
+  font-family:var(--mono);font-size:.72rem;color:var(--cyan);
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+  transform:translateY(120%);opacity:0;
+  transition:transform .3s ease,opacity .3s ease;
+}
+#toast.show{transform:translateY(0);opacity:1;}
+#toast.error{border-color:rgba(239,68,68,.4);color:var(--red);}
 
-            header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.5rem;
-            }
-        }
-    </style>
+/* scrollbars global */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+@media(max-width:1100px){
+  .main-grid{grid-template-columns:1fr;}
+  .charts-row{grid-template-columns:1fr;}
+  .stats-row{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:600px){
+  .stats-row{grid-template-columns:1fr;}
+  header{padding:.7rem 1rem;}
+  .layout{padding:1rem .75rem;}
+}
+</style>
 </head>
 <body>
-    <header>
-        <div class="logo">GhostNet Analysis Console</div>
-        <div class="sys-info">
-            <div>NODE: <span>ARCH_PROD_01</span></div>
-            <div>STATUS: <span style="color: #4ade80;">ONLINE</span></div>
-            <div>MODE: <span>INTERACTIVE</span></div>
-        </div>
-    </header>
 
-    <div class="main-layout">
-        <div class="sessions-panel">
-            <div class="panel-header">
-                <h2>Sessions</h2>
-                <div>ACTIVE: <span id="session-count">0</span></div>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th width="120">Proto</th>
-                        <th>Source</th>
-                        <th width="200">Timestamp</th>
-                        <th width="150" style="text-align: right;">Risk</th>
-                    </tr>
-                </thead>
-                <tbody id="sessions-body"></tbody>
-            </table>
-        </div>
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    GHOSTNET
+  </div>
+  <div class="header-badges">
+    <span class="hbadge hbadge-online">● ONLINE</span>
+    <span class="hbadge hbadge-mode">INTERACTIVE</span>
+    <span id="clock">--:--:--</span>
+  </div>
+</header>
 
-        <div class="inspector-panel">
-            <h2>Session Detail</h2>
-            <div id="inspector-msg">[WAITING_FOR_SELECTION]</div>
-            
-            <div id="timeline" class="timeline"></div>
+<div class="layout">
 
-            <div class="action-area">
-                <div id="analysis-card" class="analysis-card">
-                    <h3>Threat Summary</h3>
-                    <p id="analysis-text"></p>
-                    <div id="mitre-strip"></div>
-                </div>
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card cyan">
+      <div class="stat-label">Total Sessions</div>
+      <div class="stat-value" id="s-total">—</div>
+      <div class="stat-sub" id="s-analyzed">— analyzed</div>
+      <div class="stat-icon">🌐</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">Critical Alerts</div>
+      <div class="stat-value" id="s-critical">—</div>
+      <div class="stat-sub" id="s-high">— high risk</div>
+      <div class="stat-icon">🚨</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Protocols Seen</div>
+      <div class="stat-value" id="s-proto">—</div>
+      <div class="stat-sub" id="s-proto-sub">SSH / HTTP</div>
+      <div class="stat-icon">🔌</div>
+    </div>
+    <div class="stat-card violet">
+      <div class="stat-label">Avg Confidence</div>
+      <div class="stat-value" id="s-conf">—</div>
+      <div class="stat-sub">LLM analysis score</div>
+      <div class="stat-icon">🧠</div>
+    </div>
+  </div>
 
-                <button id="analyze-btn" class="btn-cyber" style="display: none;">
-                    Analyze Session
-                </button>
-            </div>
-        </div>
+  <!-- CHARTS ROW -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-card-title">Risk Distribution</div>
+      <div class="chart-wrap"><canvas id="riskChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Protocol Breakdown</div>
+      <div class="chart-wrap"><canvas id="protoChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- SESSIONS PANEL -->
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Live Session Feed</span>
+        <span class="panel-meta" id="session-count">0 sessions</span>
+      </div>
+      <div class="search-wrap">
+        <input id="search" type="text" placeholder="Filter by IP, protocol or risk…" oninput="filterSessions()">
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="sessions-table">
+          <thead>
+            <tr>
+              <th>Proto</th>
+              <th>Source IP</th>
+              <th>Started</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody id="sessions-body"></tbody>
+        </table>
+      </div>
     </div>
 
-    <script>
-        let selectedId = null;
+    <!-- INSPECTOR PANEL -->
+    <div class="panel inspector">
+      <div class="panel-head">
+        <span class="panel-title">Session Inspector</span>
+        <span class="panel-meta" id="inspector-id">—</span>
+      </div>
+      <div id="inspector-content">
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          Select a session to inspect
+        </div>
+      </div>
+    </div>
 
-        async function fetchSessions() {
-            const res = await fetch('/api/sessions');
-            if (!res.ok) {
-                throw new Error('Failed to fetch sessions');
-            }
-            const data = await res.json();
-            document.getElementById('session-count').innerText = data.length;
-            const body = document.getElementById('sessions-body');
-            body.innerHTML = '';
+  </div>
+</div>
 
-            data.forEach(s => {
-                const tr = document.createElement('tr');
-                if (selectedId === s.session_id) tr.classList.add('active');
-                tr.onclick = () => selectSession(s.session_id, s.ip_address);
-                const risk = (s.risk_level || 'unknown').toLowerCase();
-                tr.innerHTML = `
-                    <td><span class="badge badge-${(s.protocol || 'ssh').toLowerCase()}">${s.protocol || 'SSH'}</span></td>
-                    <td><span class="mono">${s.ip_address || '-'}</span></td>
-                    <td style="color: var(--muted); font-size: 0.75rem;">${new Date(s.start_time).toLocaleString()}</td>
-                    <td style="text-align: right;"><span class="badge ${risk === 'critical' ? 'badge-risk-critical' : ''}">${risk.toUpperCase()}</span></td>
-                `;
-                body.appendChild(tr);
-            });
-        }
+<!-- TOAST -->
+<div id="toast"></div>
 
-        async function selectSession(id, ip) {
-            selectedId = id;
-            await fetchSessions();
-            document.getElementById('inspector-msg').innerText = `TARGET_ORIGIN: ${ip}`;
-            document.getElementById('analyze-btn').style.display = 'block';
-            document.getElementById('analysis-card').style.display = 'none';
+<script>
+// ── State ──────────────────────────────────────────────────
+let selectedId = null;
+let allSessions = [];
+let riskChart = null;
+let protoChart = null;
 
-            const res = await fetch(`/api/sessions/${id}/events`);
-            if (!res.ok) {
-                document.getElementById('inspector-msg').innerText = '[EVENT_STREAM_UNAVAILABLE]';
-                return;
-            }
-            const events = await res.json();
-            const container = document.getElementById('timeline');
-            container.innerHTML = '';
+// ── Clock ──────────────────────────────────────────────────
+function tickClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', {hour12:false});
+}
+setInterval(tickClock, 1000);
+tickClock();
 
-            events.forEach(e => {
-                const div = document.createElement('div');
-                div.className = 'timeline-line';
-                div.innerHTML = `
-                    <span class="time">${new Date(e.timestamp).toLocaleTimeString()}</span>
-                    <span style="color: var(--brand-ink)">$ </span> ${e.raw_data || ''}
-                `;
-                container.appendChild(div);
-            });
-            container.scrollTop = container.scrollHeight;
-        }
+// ── Toast ──────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 3200);
+}
 
-        document.getElementById('analyze-btn').onclick = async () => {
-            const btn = document.getElementById('analyze-btn');
-            btn.disabled = true;
-            btn.innerText = "Analyzing...";
+// ── Risk helpers ──────────────────────────────────────────
+function riskClass(level) {
+  return 'r-' + (level || 'unknown').toLowerCase();
+}
+function protoClass(proto) {
+  return 'proto-' + (proto || 'ssh').toLowerCase();
+}
 
-            try {
-                const res = await fetch(`/api/sessions/${selectedId}/analyze`, { method: 'POST' });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.detail || 'analysis failed');
-                }
+// ── Stat Counter Animation ──────────────────────────────────
+function animateCount(el, target, decimals = 0) {
+  const raw = parseFloat(el.textContent); const start = isNaN(raw) ? 0 : raw;
+  const dur = 600;
+  const step = 16;
+  const steps = dur / step;
+  let i = 0;
+  const timer = setInterval(() => {
+    i++;
+    const val = start + (target - start) * (i / steps);
+    el.textContent = decimals ? val.toFixed(decimals) : Math.round(val);
+    if (i >= steps) { el.textContent = decimals ? target.toFixed(decimals) : target; clearInterval(timer); }
+  }, step);
+}
 
-                document.getElementById('analysis-text').innerText = data.summary || 'No summary available.';
-                const mitre = document.getElementById('mitre-strip');
-                mitre.innerHTML = '';
-                const mappings = Array.isArray(data.mitre_mapping) ? data.mitre_mapping : [];
-                mappings.forEach(m => {
-                    const s = document.createElement('span');
-                    s.className = 'badge';
-                    s.style.background = '#ffecca';
-                    s.style.color = '#8a5a00';
-                    s.style.borderColor = '#ffd58a';
-                    s.innerText = m;
-                    mitre.appendChild(s);
-                });
+// ── Charts ─────────────────────────────────────────────────
+const CHART_OPTS = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: '#64748b', font: { family: 'JetBrains Mono', size: 11 }, boxWidth: 12 } } },
+};
 
-                document.getElementById('analysis-card').style.display = 'block';
-                await fetchSessions();
-            } catch (e) {
-                document.getElementById('inspector-msg').innerText = `[ANALYSIS_ERROR] ${e.message}`;
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Analyze Session";
-            }
-        };
+function initCharts() {
+  Chart.defaults.color = '#64748b';
 
-        fetchSessions().catch(() => {
-            document.getElementById('inspector-msg').innerText = '[UPLINK_FAILURE]';
-        });
-        setInterval(() => {
-            fetchSessions().catch(() => {});
-        }, 5000);
-    </script>
+  riskChart = new Chart(document.getElementById('riskChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Critical','High','Medium','Low','Unknown'],
+      datasets: [{ data: [0,0,0,0,0],
+        backgroundColor: ['#ef444433','#f9731633','#eab30833','#22c55e33','#6b728033'],
+        borderColor:     ['#ef4444',  '#f97316',  '#eab308',  '#22c55e',  '#6b7280'  ],
+        borderWidth: 1.5
+      }]
+    },
+    options: { ...CHART_OPTS, cutout: '70%' }
+  });
+
+  protoChart = new Chart(document.getElementById('protoChart'), {
+    type: 'bar',
+    data: {
+      labels: ['SSH', 'HTTP'],
+      datasets: [{ label: 'Sessions',
+        data: [0, 0],
+        backgroundColor: ['rgba(6,182,212,.25)', 'rgba(139,92,246,.25)'],
+        borderColor:     ['#06b6d4', '#8b5cf6'],
+        borderWidth: 1.5, borderRadius: 6
+      }]
+    },
+    options: {
+      ...CHART_OPTS,
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#64748b', font:{family:'JetBrains Mono',size:10} } },
+        y: { grid: { display: false }, ticks: { color: '#64748b', font:{family:'JetBrains Mono',size:11} } }
+      }
+    }
+  });
+}
+
+// ── Fetch Stats ────────────────────────────────────────────
+async function fetchStats() {
+  try {
+    const r = await fetch('/api/stats');
+    if (!r.ok) { console.error("Stats API:", r.status); return; }
+    const d = await r.json();
+    animateCount(document.getElementById('s-total'), d.total_sessions || 0);
+    document.getElementById('s-analyzed').textContent = `${d.analyzed} analyzed`;
+    animateCount(document.getElementById('s-critical'), d.critical || 0);
+    document.getElementById('s-high').textContent = `${d.high} high risk`;
+    const protocols = Object.values(d.protocol_distribution || {}).filter(v => v > 0).length;
+    document.getElementById('s-proto').textContent = protocols;
+    document.getElementById('s-proto-sub').textContent =
+      `SSH: ${d.ssh || 0} · HTTP: ${d.http || 0}`;
+    animateCount(document.getElementById('s-conf'), d.avg_confidence || 0, 2);
+
+    // Update charts
+    const rd = d.risk_distribution || {};
+    riskChart.data.datasets[0].data = [rd.critical||0, rd.high||0, rd.medium||0, rd.low||0, rd.unknown||0];
+    riskChart.update();
+    const pd = d.protocol_distribution || {};
+    protoChart.data.datasets[0].data = [pd.SSH||0, pd.HTTP||0];
+    protoChart.update();
+  } catch(e) { /* silent */ }
+}
+
+// ── Fetch Sessions ─────────────────────────────────────────
+async function fetchSessions() {
+  const r = await fetch('/api/sessions');
+  if (!r.ok) throw new Error('Failed to fetch sessions');
+  allSessions = await r.json();
+  document.getElementById('session-count').textContent = `${allSessions.length} sessions`;
+  renderSessions(allSessions);
+}
+
+function renderSessions(sessions) {
+  const body = document.getElementById('sessions-body');
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  const filtered = q
+    ? sessions.filter(s =>
+        (s.ip_address||'').includes(q) ||
+        (s.protocol||'').toLowerCase().includes(q) ||
+        (s.risk_level||'').toLowerCase().includes(q)
+      )
+    : sessions;
+
+  body.innerHTML = '';
+  filtered.forEach(s => {
+    const tr = document.createElement('tr');
+    if (selectedId === s.session_id) tr.classList.add('active');
+    tr.onclick = () => selectSession(s.session_id);
+    const t = new Date(s.start_time);
+    const timeStr = isNaN(t) ? s.start_time : t.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+    tr.innerHTML = `
+      <td><span class="badge ${protoClass(s.protocol)}">${s.protocol||'SSH'}</span></td>
+      <td style="font-family:var(--mono);font-size:.72rem;">${s.ip_address||'—'}</td>
+      <td style="font-size:.7rem;color:var(--muted);">${timeStr}</td>
+      <td><span class="badge ${riskClass(s.risk_level)}">${(s.risk_level||'UNKNOWN').toUpperCase()}</span></td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+function filterSessions() { renderSessions(allSessions); }
+
+// ── Select Session ─────────────────────────────────────────
+async function selectSession(id) {
+  selectedId = id;
+  renderSessions(allSessions);
+  document.getElementById('inspector-id').textContent = id.substring(0, 14) + '…';
+
+  const content = document.getElementById('inspector-content');
+  content.innerHTML = `<div class="empty-state"><div class="empty-icon" style="animation:spin .8s linear infinite">⟳</div>Loading…</div>`;
+
+  try {
+    const [evRes, anRes] = await Promise.allSettled([
+      fetch(`/api/sessions/${id}/events`),
+      fetch(`/api/sessions/${id}/analysis`),
+    ]);
+
+    const events = evRes.status === 'fulfilled' && evRes.value.ok
+      ? await evRes.value.json() : [];
+    const analysis = anRes.status === 'fulfilled' && anRes.value.ok
+      ? await anRes.value.json() : null;
+
+    const session = allSessions.find(s => s.session_id === id) || {};
+    renderInspector(session, events, analysis);
+  } catch(e) {
+    content.innerHTML = `<div class="empty-state" style="color:var(--red)">⚠ Failed to load session</div>`;
+  }
+}
+
+// ── Render Inspector ───────────────────────────────────────
+function renderInspector(session, events, analysis) {
+  const risk = (session.risk_level||'unknown').toLowerCase();
+  const confidence = analysis?.confidence || 0;
+  const confPct = Math.round(confidence * 100);
+
+  // timeline HTML
+  let timelineHtml = events.slice(0, 80).map(e => `
+    <div class="tl-item tl-type-${e.event_type||''}">
+      <span class="tl-time">${e.timestamp||''}</span>
+      <span class="tl-command">${escHtml(e.raw_data||'')}</span>
+    </div>`).join('');
+  if (!timelineHtml) timelineHtml = `<div style="color:var(--muted);font-size:.72rem;font-family:var(--mono);">No events recorded.</div>`;
+
+  // tags
+  const tags = (analysis?.behavioral_tags || []).map(t => `<span class="tag">${escHtml(t)}</span>`).join('');
+  // mitre
+  const mitre = (analysis?.mitre_mapping || []).map(m =>
+    `<span class="mitre-tag" onclick="window.open('https://attack.mitre.org/techniques/${m.split('.')[0]}/')">${escHtml(m)}</span>`
+  ).join('');
+  // iocs
+  const iocs = (analysis?.iocs || []).map(i => `<div class="ioc-item">${escHtml(i)}</div>`).join('');
+  // recs
+  const recs = (analysis?.recommendations || []).map((r, i) =>
+    `<div class="rec-item"><div class="rec-num">${i+1}</div><span>${escHtml(r)}</span></div>`
+  ).join('');
+
+  const kcp = analysis?.kill_chain_phase || '—';
+  const intent = analysis?.intent || '';
+
+  const HTML = `
+    <div class="inspector-body">
+      <div class="inspector-meta">
+        <div class="meta-item">
+          <div class="meta-label">Source IP</div>
+          <div class="meta-value">${escHtml(session.ip_address||'—')}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Protocol</div>
+          <div class="meta-value"><span class="badge ${protoClass(session.protocol)}">${session.protocol||'—'}</span></div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Risk Level</div>
+          <div class="meta-value"><span class="badge ${riskClass(risk)}">${risk.toUpperCase()}</span></div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Kill Chain</div>
+          <div class="meta-value" style="font-size:.7rem;">${escHtml(kcp)}</div>
+        </div>
+      </div>
+
+      ${analysis ? `
+      <div class="conf-wrap">
+        <div class="conf-label">
+          <span>Confidence</span><span style="color:var(--cyan);font-family:var(--mono)">${confPct}%</span>
+        </div>
+        <div class="conf-track"><div class="conf-fill" style="width:${confPct}%"></div></div>
+      </div>` : ''}
+
+      ${intent ? `<div style="font-size:.75rem;color:var(--muted);font-style:italic;padding:.4rem .6rem;background:rgba(255,255,255,.02);border-radius:8px;border:1px solid var(--border)">${escHtml(intent)}</div>` : ''}
+
+      ${analysis?.summary ? `
+      <div>
+        <div class="sec-head">Executive Summary</div>
+        <div style="font-size:.75rem;line-height:1.6;color:var(--text)">${escHtml(analysis.summary)}</div>
+      </div>` : ''}
+
+      ${tags ? `<div><div class="sec-head">Behavioral Tags</div><div class="tags-wrap">${tags}</div></div>` : ''}
+
+      <div>
+        <div class="sec-head">Timeline (${events.length} events)</div>
+        <div class="timeline-wrap">${timelineHtml}</div>
+      </div>
+
+      ${mitre ? `<div><div class="sec-head">MITRE ATT&CK (click to open)</div><div class="mitre-wrap">${mitre}</div></div>` : ''}
+
+      ${iocs ? `<div><div class="sec-head">Indicators of Compromise</div><div class="ioc-list">${iocs}</div></div>` : ''}
+
+      ${recs ? `<div><div class="sec-head">Recommendations</div><div class="rec-list">${recs}</div></div>` : ''}
+    </div>
+
+    <div class="action-area">
+      <button id="analyze-btn" class="btn btn-primary" onclick="triggerAnalysis()">
+        <div class="spinner" id="analyze-spinner"></div>
+        <span id="analyze-label">⚡ ${analysis ? 'Re-analyze Session' : 'Analyze Session'}</span>
+      </button>
+      <button id="report-btn" class="btn btn-secondary" onclick="downloadReport()" ${!analysis ? 'disabled' : ''}>
+        ⬇ Download PDF Report
+      </button>
+    </div>
+  `;
+
+  document.getElementById('inspector-content').innerHTML = HTML;
+}
+
+// ── Trigger Analysis ───────────────────────────────────────
+async function triggerAnalysis() {
+  if (!selectedId) return;
+  const btn = document.getElementById('analyze-btn');
+  const spinner = document.getElementById('analyze-spinner');
+  const label = document.getElementById('analyze-label');
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  label.textContent = 'Analyzing…';
+
+  try {
+    const r = await fetch(`/api/sessions/${selectedId}/analyze`, { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Analysis failed');
+    showToast('✓ Analysis complete');
+    await fetchSessions();
+    await fetchStats();
+    const session = allSessions.find(s => s.session_id === selectedId) || {};
+    const evRes = await fetch(`/api/sessions/${selectedId}/events`);
+    const events = evRes.ok ? await evRes.json() : [];
+    renderInspector(session, events, data);
+  } catch(e) {
+    showToast('⚠ ' + e.message, true);
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    label.textContent = '⚡ Analyze Session';
+  }
+}
+
+// ── Download Report ────────────────────────────────────────
+async function downloadReport() {
+  if (!selectedId) return;
+  const btn = document.getElementById('report-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating…';
+  try {
+    const r = await fetch(`/api/sessions/${selectedId}/report`);
+    if (!r.ok) { const d = await r.json(); throw new Error(d.detail || 'Report failed'); }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ghostnet_report_${selectedId.substring(0,12)}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✓ Report downloaded');
+  } catch(e) {
+    showToast('⚠ ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⬇ Download PDF Report';
+  }
+}
+
+// ── Escape HTML ────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ───────────────────────────────────────────────────
+async function init() {
+  initCharts();
+  await Promise.allSettled([fetchSessions(), fetchStats()]);
+  setInterval(async () => {
+    await Promise.allSettled([fetchSessions(), fetchStats()]);
+  }, 5000);
+}
+init();
+</script>
 </body>
 </html>

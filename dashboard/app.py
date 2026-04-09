@@ -7,13 +7,15 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 import sys
+import io
 
 # Import our analysis logic
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 from llm_analysis import analyze_session_with_llm
+from report_generator import generate_pdf_report
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "honeypot", "analysis"))
 from session_db import SessionDB
@@ -27,6 +29,8 @@ COWRIE_LOG = "/var/log/cowrie/cowrie.json"
 HTTP_LOG = "/var/log/cowrie/http_honeypot.json"
 INGEST_INTERVAL_SECONDS = 3.0
 
+
+# ─────────────────────── Log Ingestor ───────────────────────────
 
 class LogIngestor:
     def __init__(self, session_db: SessionDB) -> None:
@@ -58,6 +62,12 @@ class LogIngestor:
             self._positions[path] = file_handle.tell()
             return lines
 
+    async def _auto_analyze(self, session_id: str):
+        try:
+            await asyncio.to_thread(analyze_session_with_llm, session_id)
+        except Exception as e:
+            logger.error(f"Auto analysis failed: {e}")
+
     def _ingest_cowrie_event(self, event: Dict[str, Any]) -> None:
         session_id = event.get("session")
         timestamp = event.get("timestamp")
@@ -75,6 +85,7 @@ class LogIngestor:
             cmd = event.get("input") or ""
             self.db.upsert_session(session_id, src_ip, "SSH", timestamp)
             self.db.add_event(session_id, timestamp, "COMMAND", cmd)
+            asyncio.create_task(self._auto_analyze(session_id))
             return
 
         if event_id == "cowrie.login.success":
@@ -134,7 +145,6 @@ async def _ingest_loop() -> None:
 @app.on_event("startup")
 async def startup_event() -> None:
     global ingest_task
-    # Prime database with any existing log data on startup.
     ingestor.ingest_once()
     ingest_task = asyncio.create_task(_ingest_loop())
 
@@ -148,6 +158,9 @@ async def shutdown_event() -> None:
             await ingest_task
         ingest_task = None
 
+
+# ─────────────────────── Pydantic Models ────────────────────────
+
 class SessionEntry(BaseModel):
     session_id: str
     ip_address: str
@@ -156,12 +169,25 @@ class SessionEntry(BaseModel):
     risk_level: str
     summary: Optional[str] = None
 
+
+# ─────────────────────── API Endpoints ──────────────────────────
+
+@app.get("/api/stats")
+async def get_stats():
+    """Aggregate statistics for the dashboard overview cards and charts."""
+    try:
+        return db.get_stats()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to load stats.") from exc
+
+
 @app.get("/api/sessions", response_model=List[SessionEntry])
 async def get_sessions():
     try:
         return db.get_sessions()
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to load sessions.") from exc
+
 
 @app.get("/api/sessions/{session_id}/events")
 async def get_session_events(session_id: str):
@@ -174,8 +200,32 @@ async def get_session_events(session_id: str):
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to load session events.") from exc
 
+
+@app.get("/api/sessions/{session_id}/analysis")
+async def get_analysis(session_id: str):
+    try:
+        if not db.session_exists(session_id):
+            raise HTTPException(status_code=404, detail="Session not found.")
+
+        # 1. Try cached result
+        analysis = db.get_analysis(session_id)
+
+        # 2. If not cached → run LLM
+        if not analysis:
+            analysis = await run_in_threadpool(analyze_session_with_llm, session_id)
+            if not analysis:
+                raise HTTPException(status_code=404, detail="No events found for this session.")
+
+        return analysis
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Analysis engine failed.") from exc
+
+
 @app.post("/api/sessions/{session_id}/analyze")
 async def trigger_analysis(session_id: str):
+    """Force a fresh LLM analysis, bypassing cache."""
     try:
         if not db.session_exists(session_id):
             raise HTTPException(status_code=404, detail="Session not found.")
@@ -189,11 +239,39 @@ async def trigger_analysis(session_id: str):
     except Exception as exc:
         raise HTTPException(status_code=502, detail="Analysis engine failed.") from exc
 
-# Serve the static files (Frontend)
+
+@app.get("/api/sessions/{session_id}/report")
+async def download_report(session_id: str):
+    """Generate and stream a PDF threat intelligence report."""
+    try:
+        if not db.session_exists(session_id):
+            raise HTTPException(status_code=404, detail="Session not found.")
+
+        pdf_bytes = await run_in_threadpool(generate_pdf_report, session_id)
+        if not pdf_bytes:
+            raise HTTPException(status_code=404, detail="Session not found or no data available.")
+
+        filename = f"ghostnet_report_{session_id[:12]}.pdf"
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except HTTPException:
+        raise
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Report generation failed.") from exc
+
+
+# ─────────────────────── Frontend ───────────────────────────────
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():
     with open(os.path.join(os.path.dirname(__file__), "index.html"), "r", encoding="utf-8") as f:
         return f.read()
+
 
 # For running locally:
 if __name__ == "__main__":

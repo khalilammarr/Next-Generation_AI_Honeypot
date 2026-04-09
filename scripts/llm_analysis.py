@@ -20,6 +20,9 @@ GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
 DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "analysis.db"))
 db = SessionDB(DB_PATH)
 
+
+# ──────────────────── Parsers / Normalizers ────────────────────
+
 def _extract_json_object(text: str) -> Dict[str, Any]:
     try:
         return json.loads(text)
@@ -43,7 +46,6 @@ def _normalize_mitre_mapping(value: Any) -> List[str]:
         candidates = re.split(r"[,\n]", value)
     else:
         candidates = []
-
     cleaned = []
     for item in candidates:
         token = str(item).strip()
@@ -52,7 +54,62 @@ def _normalize_mitre_mapping(value: Any) -> List[str]:
     return cleaned[:15]
 
 
-def analyze_session_with_llm(session_id):
+def _normalize_str_list(value: Any, max_items: int = 10) -> List[str]:
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()][:max_items]
+    if isinstance(value, str) and value.strip():
+        return [value.strip()][:max_items]
+    return []
+
+
+def _normalize_confidence(value: Any) -> float:
+    try:
+        f = float(value)
+        return round(max(0.0, min(1.0, f)), 2)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _normalize_kill_chain(value: Optional[str]) -> str:
+    valid_phases = {
+        "reconnaissance", "weaponization", "delivery",
+        "exploitation", "installation", "command & control",
+        "command and control", "actions on objectives", "unknown",
+    }
+    v = (value or "unknown").strip().lower()
+    return v if v in valid_phases else "unknown"
+
+
+# ──────────────────── Core Analysis Function ────────────────────
+
+SYSTEM_PROMPT = """\
+You are a Senior Cyber Threat Intelligence Analyst with deep expertise in Linux internals, \
+network exploitation, and the MITRE ATT&CK framework. \
+You will receive raw honeypot telemetry (SSH commands and HTTP requests captured from real attackers).
+
+Your task: produce a thorough, structured threat intelligence report as strict JSON only.
+
+Required JSON keys:
+- intent (string): One concise sentence describing the attacker's primary objective.
+- risk_level (string): One of [low, medium, high, critical].
+- kill_chain_phase (string): The Lockheed Martin Cyber Kill Chain phase that best describes the primary activity. \
+  One of [Reconnaissance, Weaponization, Delivery, Exploitation, Installation, Command & Control, Actions on Objectives].
+- confidence (float): Your confidence in this analysis, from 0.0 (very uncertain) to 1.0 (certain).
+- mitre_mapping (array of strings): MITRE ATT&CK technique IDs (e.g. ["T1059.004", "T1071.001"]). \
+  Include sub-techniques where applicable. Maximum 15 entries.
+- iocs (array of strings): Indicators of Compromise extracted from the session — IPs, domains, \
+  suspicious file paths, URLs, hashes, malware names. Maximum 10 entries.
+- behavioral_tags (array of strings): Short keyword tags describing the attack pattern \
+  (e.g. ["brute-force", "crypto-miner", "data-exfiltration", "lateral-movement"]). Maximum 8 entries.
+- summary (string): Executive summary in 3-5 sentences covering what the attacker did, \
+  the risk, and the likely objective.
+- recommendations (array of strings): 3 concrete, actionable defensive recommendations. \
+
+Return ONLY valid JSON. No markdown, no code fences, no explanations outside the JSON.\
+"""
+
+
+def analyze_session_with_llm(session_id: str) -> Optional[Dict[str, Any]]:
     if not (GROQ_API_KEY or "").strip():
         raise RuntimeError("GROQ_API_KEY is missing for analysis service.")
 
@@ -60,7 +117,7 @@ def analyze_session_with_llm(session_id):
     if not events:
         return None
 
-    # Prepare timeline for LLM
+    # Build timeline string
     timeline = []
     for etype, data, output in events:
         event_data = (data or "").strip()
@@ -69,27 +126,18 @@ def analyze_session_with_llm(session_id):
             timeline.append(f"[{etype}] {event_data} -> {event_output[:500]}")
         else:
             timeline.append(f"[{etype}] {event_data}")
-    
-    timeline_str = "\n".join(timeline[:300])
 
-    system_prompt = (
-        "You are a Senior Cyber Threat Intelligence Analyst.\n"
-        "Analyze attacker behavior from honeypot telemetry and return strict JSON only.\n"
-        "Required keys: intent, risk_level, mitre_mapping, summary.\n"
-        "risk_level must be one of: low, medium, high, critical.\n"
-        "mitre_mapping must be a list of ATT&CK IDs where possible.\n"
-        "summary must be concise (2-4 sentences)."
-    )
+    timeline_str = "\n".join(timeline[:300])
 
     client = OpenAI(api_key=GROQ_API_KEY, base_url=GROQ_BASE_URL)
     response = client.chat.completions.create(
         model=GROQ_MODEL,
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Session ID: {session_id}\nSession Timeline:\n{timeline_str}"}
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Session ID: {session_id}\nSession Timeline:\n{timeline_str}"},
         ],
         temperature=0.1,
-        response_format={"type": "json_object"}
+        response_format={"type": "json_object"},
     )
 
     content = response.choices[0].message.content or "{}"
@@ -98,8 +146,13 @@ def analyze_session_with_llm(session_id):
     analysis = {
         "intent": str(parsed.get("intent", "Unknown intent")).strip(),
         "risk_level": _normalize_risk_level(parsed.get("risk_level")),
+        "kill_chain_phase": _normalize_kill_chain(parsed.get("kill_chain_phase")),
+        "confidence": _normalize_confidence(parsed.get("confidence")),
         "mitre_mapping": _normalize_mitre_mapping(parsed.get("mitre_mapping")),
+        "iocs": _normalize_str_list(parsed.get("iocs"), max_items=10),
+        "behavioral_tags": _normalize_str_list(parsed.get("behavioral_tags"), max_items=8),
         "summary": str(parsed.get("summary", "No summary generated.")).strip(),
+        "recommendations": _normalize_str_list(parsed.get("recommendations"), max_items=3),
     }
 
     db.save_analysis(
@@ -107,10 +160,14 @@ def analyze_session_with_llm(session_id):
         risk_level=analysis["risk_level"],
         summary=analysis["summary"],
         mitre_mapping=analysis["mitre_mapping"],
+        iocs=analysis["iocs"],
+        kill_chain_phase=analysis["kill_chain_phase"],
+        confidence=analysis["confidence"],
+        behavioral_tags=analysis["behavioral_tags"],
+        recommendations=analysis["recommendations"],
     )
     return analysis
 
+
 if __name__ == "__main__":
-    # Example usage:
-    # analyze_session_with_llm("SESSION_ID_HERE")
     pass
