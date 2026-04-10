@@ -14,7 +14,7 @@ import io
 
 # Import our analysis logic
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
-from llm_analysis import analyze_session_with_llm
+from llm_analysis import analyze_session_with_llm, explain_command_with_llm
 from report_generator import generate_pdf_report
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "honeypot", "analysis"))
@@ -25,8 +25,21 @@ logger = logging.getLogger("dashboard.ingestor")
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "analysis.db")
 db = SessionDB(DB_PATH)
-COWRIE_LOG = "/var/log/cowrie/cowrie.json"
-HTTP_LOG = "/var/log/cowrie/http_honeypot.json"
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+COWRIE_LOG = os.getenv("COWRIE_LOG", "/var/log/cowrie/cowrie.json")
+HTTP_LOG = os.getenv("HTTP_LOG", "/var/log/cowrie/http_honeypot.json")
+
+# Fallback for local testing if system paths don't exist
+local_cowrie = os.path.join(ROOT_DIR, "logs", "cowrie.json")
+local_http = os.path.join(ROOT_DIR, "logs", "http_honeypot.json")
+
+if not os.path.exists(COWRIE_LOG) and os.path.exists(local_cowrie):
+    COWRIE_LOG = local_cowrie
+if not os.path.exists(HTTP_LOG) and os.path.exists(local_http):
+    HTTP_LOG = local_http
+
+logger.info(f"Ingestor active. Reading records from: {HTTP_LOG}")
+
 INGEST_INTERVAL_SECONDS = 3.0
 
 
@@ -95,19 +108,35 @@ class LogIngestor:
 
     def _ingest_http_event(self, event: Dict[str, Any]) -> None:
         timestamp = event.get("timestamp")
-        src_ip = event.get("ip") or "unknown"
+        src_ip = event.get("src_ip") or event.get("ip") or "unknown"
         if not timestamp:
             return
 
-        session_id = event.get("request_id") or f"http-{src_ip}"
+        import uuid
+        session_id = event.get("request_id") or f"http-{uuid.uuid4().hex[:12]}"
         method = event.get("method") or "GET"
         path = event.get("path") or "/"
         user_agent = event.get("user_agent")
 
+        payload = event.get("payload")
+        req_line = f"{method} {path}"
+        if payload:
+            req_line += f"\nPayload: {payload}"
+
         self.db.upsert_session(session_id, src_ip, "HTTP", timestamp, user_agent=user_agent)
-        self.db.add_event(session_id, timestamp, "REQUEST", f"{method} {path}")
+        self.db.add_event(session_id, timestamp, "REQUEST", req_line)
+        asyncio.create_task(self._auto_analyze(session_id))
 
     def ingest_once(self) -> None:
+        # Re-evaluate paths if they don't exist yet (useful for new log files)
+        global COWRIE_LOG, HTTP_LOG
+        if not os.path.exists(COWRIE_LOG) and os.path.exists(local_cowrie):
+            COWRIE_LOG = local_cowrie
+            logger.info(f"Ingestor switched to local Cowrie log: {COWRIE_LOG}")
+        if not os.path.exists(HTTP_LOG) and os.path.exists(local_http):
+            HTTP_LOG = local_http
+            logger.info(f"Ingestor switched to local HTTP log: {HTTP_LOG}")
+
         for line in self._read_new_lines(COWRIE_LOG):
             line = line.strip()
             if not line:
@@ -168,6 +197,9 @@ class SessionEntry(BaseModel):
     start_time: str
     risk_level: str
     summary: Optional[str] = None
+
+class CommandRequest(BaseModel):
+    command: str
 
 
 # ─────────────────────── API Endpoints ──────────────────────────
@@ -238,6 +270,16 @@ async def trigger_analysis(session_id: str):
         raise
     except Exception as exc:
         raise HTTPException(status_code=502, detail="Analysis engine failed.") from exc
+
+
+@app.post("/api/explain_command")
+async def explain_command(req: CommandRequest):
+    """Generate a short description for a single command."""
+    try:
+        explanation = await run_in_threadpool(explain_command_with_llm, req.command)
+        return {"explanation": explanation}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Explanation engine failed.") from exc
 
 
 @app.get("/api/sessions/{session_id}/report")

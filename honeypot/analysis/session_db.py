@@ -263,4 +263,35 @@ class SessionDB:
                     "SSH": ssh_count,
                     "HTTP": http_count,
                 },
+                "top_behavioral_tags": self._get_top_behavioral_tags(cursor),
+                "activity_24h": self._get_24h_activity(cursor),
             }
+
+    def _get_24h_activity(self, cursor) -> List[Dict[str, Any]]:
+        """Get session counts grouped by hour for the last 24 hours."""
+        query = """
+            SELECT strftime('%Y-%m-%d %H:00', start_time) as hour, COUNT(*) as count
+            FROM sessions
+            WHERE start_time >= datetime('now', '-24 hours')
+            GROUP BY hour
+            ORDER BY hour ASC
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    def _get_top_behavioral_tags(self, cursor) -> Dict[str, int]:
+        """Aggregate behavioral tags from all analyzed sessions."""
+        cursor.execute("SELECT behavioral_tags FROM sessions WHERE behavioral_tags IS NOT NULL")
+        all_tags = cursor.fetchall()
+        tag_counts = {}
+        for row in all_tags:
+            try:
+                tags = json.loads(row[0])
+                for t in tags:
+                    tag_counts[t] = tag_counts.get(t, 0) + 1
+            except:
+                continue
+        # Support returning top 10
+        sorted_tags = dict(sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:10])
+        return sorted_tags

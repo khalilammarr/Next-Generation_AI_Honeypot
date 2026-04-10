@@ -7,7 +7,7 @@ services:
       - "22:2222"
       - "23:2223"
     volumes:
-      - /var/log/cowrie:/cowrie/cowrie-git/var/log/cowrie
+      - C:\Users\marie\var\log\cowrie:/cowrie/cowrie-git/var/log/cowrie
       - ./configs/cowrie.cfg:/cowrie/cowrie-git/etc/cowrie.cfg
       - cowrie-var:/cowrie/cowrie-git/var/
 
@@ -18,15 +18,14 @@ services:
       - GROQ_MODEL=${GROQ_MODEL:-moonshotai/kimi-k2-instruct}
     dns:
       - 8.8.8.8
-    restart: always
-     # HTTP Honeypot (FastAPI Agent)
+    restart: always # HTTP Honeypot (FastAPI Agent)
   http-honeypot:
     build: ./honeypot/http
     container_name: honey-http
     ports:
       - "80:8000"
     volumes:
-      - /var/log/cowrie:/app/logs
+      - C:\Users\marie\var\log\cowrie:/app/logs
     environment:
       - NVIDIA_API_KEY=${GROQ_API_KEY:-}
       - NVIDIA_BASE_URL=${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
@@ -64,12 +63,12 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - /var/log/cowrie:/var/log/cowrie
+      - C:\Users\marie\var\log\cowrie:/var/log/cowrie
       - .:/app
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY:-}
       - GROQ_MODEL=${GROQ_MODEL:-moonshotai/kimi-k2-instruct}
     restart: always
-    
+
 volumes:
   cowrie-var:

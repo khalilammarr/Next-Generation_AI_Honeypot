@@ -169,5 +169,21 @@ def analyze_session_with_llm(session_id: str) -> Optional[Dict[str, Any]]:
     return analysis
 
 
+def explain_command_with_llm(command: str) -> str:
+    if not (GROQ_API_KEY or "").strip():
+        raise RuntimeError("GROQ_API_KEY is missing for analysis service.")
+    
+    prompt = f"Explain what the following attacker command does in 1-2 short sentences. Be concise and technical:\n\n{command}"
+    client = OpenAI(api_key=GROQ_API_KEY, base_url=GROQ_BASE_URL)
+    response = client.chat.completions.create(
+        model=GROQ_MODEL,
+        messages=[
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.1,
+    )
+    return response.choices[0].message.content or "No explanation generated."
+
+
 if __name__ == "__main__":
     pass

@@ -54,15 +54,21 @@ def parse_http_logs():
                 # HTTP logs might not have a formal 'session' ID yet, 
                 # we group by IP + Time Window manually if needed, 
                 # but let's assume a unique ID per request sequence for now.
-                session_id = event.get("request_id") or event.get("ip")
+                import uuid
+                session_id = event.get("request_id") or f"http-{uuid.uuid4().hex[:12]}"
                 timestamp = event.get("timestamp")
-                src_ip = event.get("ip")
+                src_ip = event.get("src_ip") or event.get("ip") or "unknown"
                 method = event.get("method")
                 path = event.get("path")
                 ua = event.get("user_agent")
 
+                payload = event.get("payload")
+                req_line = f"{method} {path}"
+                if payload:
+                    req_line += f"\nPayload: {payload}"
+
                 db.upsert_session(session_id, src_ip, "HTTP", timestamp, user_agent=ua)
-                db.add_event(session_id, timestamp, "REQUEST", f"{method} {path}")
+                db.add_event(session_id, timestamp, "REQUEST", req_line)
 
             except Exception as e:
                 continue

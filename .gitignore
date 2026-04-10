@@ -47,3 +47,4 @@ ollama_data/**
 
 # Large third-party stack snapshot (track separately)
 wazuh/wazuh-docker/
+docker-compose.yml
