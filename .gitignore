@@ -39,7 +39,7 @@ ollama_data/**
 *.har
 *.sqlite
 *.db
-
+*.vscode
 # Build / temp
 *.tmp
 *.swp
