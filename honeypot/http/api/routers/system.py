@@ -21,10 +21,17 @@ router = APIRouter()
 @router.get("/wp-login.php")
 @router.get("/administrator")
 async def login_page(request: Request, background_tasks: BackgroundTasks):
+    # Get the real public IP if behind a proxy
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        src_ip = forwarded.split(",")[0].strip()
+    else:
+        src_ip = request.client.host if request.client else "unknown"
+
     event = {
         "eventid": "http.honeypot.login_view",
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-        "src_ip": request.client.host if request.client else "unknown",
+        "src_ip": src_ip,
         "method": "GET",
         "path": request.url.path,
     }
@@ -60,10 +67,17 @@ async def login_attempt(request: Request, background_tasks: BackgroundTasks):
         username = ""
         password = ""
 
+    # Get the real public IP if behind a proxy
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        src_ip = forwarded.split(",")[0].strip()
+    else:
+        src_ip = request.client.host if request.client else "unknown"
+
     event = {
         "eventid": "http.honeypot.credential_harvest",
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-        "src_ip": request.client.host if request.client else "unknown",
+        "src_ip": src_ip,
         "method": "POST",
         "path": request.url.path,
         "username": username,

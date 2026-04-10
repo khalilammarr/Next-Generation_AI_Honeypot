@@ -13,9 +13,9 @@ from honeypot.analysis.session_db import SessionDB
 from dotenv import load_dotenv
 load_dotenv()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "moonshotai/kimi-k2-instruct")
-GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+GROQ_API_KEY = os.getenv("AI_API_KEY", os.getenv("GROQ_API_KEY"))
+GROQ_MODEL = os.getenv("LLM_MODEL", os.getenv("GROQ_MODEL", "moonshotai/kimi-k2-instruct"))
+GROQ_BASE_URL = os.getenv("AI_BASE_URL", os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"))
 
 DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "analysis.db"))
 db = SessionDB(DB_PATH)
@@ -130,17 +130,36 @@ def analyze_session_with_llm(session_id: str) -> Optional[Dict[str, Any]]:
     timeline_str = "\n".join(timeline[:300])
 
     client = OpenAI(api_key=GROQ_API_KEY, base_url=GROQ_BASE_URL)
-    response = client.chat.completions.create(
-        model=GROQ_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Session ID: {session_id}\nSession Timeline:\n{timeline_str}"},
-        ],
-        temperature=0.1,
-        response_format={"type": "json_object"},
-    )
-
-    content = response.choices[0].message.content or "{}"
+    
+    try:
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Session ID: {session_id}\nSession Timeline:\n{timeline_str}"},
+            ],
+            temperature=0.1,
+            response_format={"type": "json_object"},
+            timeout=15.0,
+        )
+        content = response.choices[0].message.content or "{}"
+    except Exception as e:
+        # Fallback: Try without JSON object format or with a more standard model
+        print(f"Primary analysis failed, trying fallback: {e}")
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-specdec",  # A very fast, standard Groq model
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT + "\nIMPORTANT: Return ONLY raw JSON."},
+                    {"role": "user", "content": f"Session ID: {session_id}\nSession Timeline:\n{timeline_str}"},
+                ],
+                temperature=0.1,
+                timeout=20.0,
+            )
+            content = response.choices[0].message.content or "{}"
+        except Exception as e2:
+            print(f"All analysis attempts failed: {e2}")
+            return None
     parsed = _extract_json_object(content)
 
     analysis = {

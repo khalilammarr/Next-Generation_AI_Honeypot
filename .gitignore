@@ -5,7 +5,7 @@ Thumbs.db
 .idea/
 *.swp
 *.tmp
-
+*.yml
 # Python
 __pycache__/
 *.pyc

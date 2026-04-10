@@ -30,36 +30,41 @@ except ImportError:
 DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "analysis.db"))
 db = SessionDB(DB_PATH)
 
-# ── Color palette (matching the dark cyber dashboard) ──
-NAVY       = colors.HexColor("#0a0e1a")
-NAVY_MID   = colors.HexColor("#111827")
-CYAN       = colors.HexColor("#06b6d4")
-CYAN_LIGHT = colors.HexColor("#67e8f9")
-EMERALD    = colors.HexColor("#10b981")
-WHITE      = colors.HexColor("#f0f9ff")
-GRAY_LIGHT = colors.HexColor("#e2e8f0")
-GRAY_MID   = colors.HexColor("#64748b")
-GRAY_DARK  = colors.HexColor("#1e293b")
+if REPORTLAB_AVAILABLE:
+    # ── Color palette (matching the dark cyber dashboard) ──
+    NAVY       = colors.HexColor("#0a0e1a")
+    NAVY_MID   = colors.HexColor("#111827")
+    CYAN       = colors.HexColor("#06b6d4")
+    CYAN_LIGHT = colors.HexColor("#67e8f9")
+    EMERALD    = colors.HexColor("#10b981")
+    WHITE      = colors.HexColor("#f0f9ff")
+    GRAY_LIGHT = colors.HexColor("#e2e8f0")
+    GRAY_MID   = colors.HexColor("#64748b")
+    GRAY_DARK  = colors.HexColor("#1e293b")
 
-RISK_COLORS = {
-    "critical": colors.HexColor("#ef4444"),
-    "high":     colors.HexColor("#f97316"),
-    "medium":   colors.HexColor("#eab308"),
-    "low":      colors.HexColor("#22c55e"),
-    "unknown":  colors.HexColor("#6b7280"),
-}
+    RISK_COLORS = {
+        "critical": colors.HexColor("#ef4444"),
+        "high":     colors.HexColor("#f97316"),
+        "medium":   colors.HexColor("#eab308"),
+        "low":      colors.HexColor("#22c55e"),
+        "unknown":  colors.HexColor("#6b7280"),
+    }
 
-KILL_CHAIN_COLORS = {
-    "reconnaissance":       colors.HexColor("#8b5cf6"),
-    "weaponization":        colors.HexColor("#ec4899"),
-    "delivery":             colors.HexColor("#f97316"),
-    "exploitation":         colors.HexColor("#ef4444"),
-    "installation":         colors.HexColor("#dc2626"),
-    "command & control":    colors.HexColor("#06b6d4"),
-    "command and control":  colors.HexColor("#06b6d4"),
-    "actions on objectives":colors.HexColor("#10b981"),
-    "unknown":              colors.HexColor("#6b7280"),
-}
+    KILL_CHAIN_COLORS = {
+        "reconnaissance":       colors.HexColor("#8b5cf6"),
+        "weaponization":        colors.HexColor("#ec4899"),
+        "delivery":             colors.HexColor("#f97316"),
+        "exploitation":         colors.HexColor("#ef4444"),
+        "installation":         colors.HexColor("#dc2626"),
+        "command & control":    colors.HexColor("#06b6d4"),
+        "command and control":  colors.HexColor("#06b6d4"),
+        "actions on objectives":colors.HexColor("#10b981"),
+        "unknown":              colors.HexColor("#6b7280"),
+    }
+else:
+    # Dummy values to avoid reference errors
+    NAVY = NAVY_MID = CYAN = CYAN_LIGHT = EMERALD = WHITE = GRAY_LIGHT = GRAY_MID = GRAY_DARK = None
+    RISK_COLORS = KILL_CHAIN_COLORS = {}
 
 
 def _make_styles() -> Dict[str, ParagraphStyle]:
@@ -107,6 +112,14 @@ def _make_styles() -> Dict[str, ParagraphStyle]:
         textColor=WHITE,
         spaceAfter=4,
         leading=14,
+    )
+    styles["body_dim"] = ParagraphStyle(
+        "body_dim",
+        fontName="Helvetica",
+        fontSize=8,
+        textColor=GRAY_MID,
+        spaceAfter=4,
+        leading=12,
     )
     styles["mono"] = ParagraphStyle(
         "mono",
@@ -408,6 +421,128 @@ def generate_pdf_report(session_id: str) -> Optional[bytes]:
         canvas.setFont("Helvetica", 7)
         canvas.setFillColor(GRAY_MID)
         canvas.drawRightString(A4[0] - 20 * mm, 10 * mm, f"Page {doc.page}")
+        canvas.restoreState()
+
+    doc.build(elements, onFirstPage=_page_template, onLaterPages=_page_template)
+    return buffer.getvalue()
+
+
+def generate_batch_pdf_report(time_range: str = "30d") -> Optional[bytes]:
+    """Generate a high-level executive summary PDF for a given time period."""
+    global db
+    stats = db.get_stats(time_range=time_range)
+    
+    if stats["total_sessions"] == 0:
+        return None
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=20 * mm,
+        leftMargin=20 * mm,
+        topMargin=20 * mm,
+        bottomMargin=20 * mm,
+    )
+    S = _make_styles()
+    elements = []
+    
+    generated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    range_label = {"today": "Daily", "7d": "Weekly", "30d": "Monthly", "all": "Lifetime"}.get(time_range, "Custom")
+
+    # ── Header ──
+    elements.append(Paragraph("<b>GHOSTNET</b>", S["title"]))
+    elements.append(Paragraph(f"Executive Threat Intelligence · {range_label} Summary", S["subtitle"]))
+    elements.append(HRFlowable(width="100%", thickness=1, color=CYAN, spaceAfter=8))
+    elements.append(Paragraph(f"Generated: {generated_at}", S["body_dim"]))
+    elements.append(Spacer(1, 10 * mm))
+
+    # ── Overview Stats ──
+    elements.append(Paragraph("<b>1. TACTICAL OVERVIEW</b>", S["section_header"]))
+    elements.append(HRFlowable(width="100%", thickness=0.5, color=GRAY_MID, spaceAfter=4))
+    
+    data = [
+        [Paragraph("<b>Metric</b>", S["body"]), Paragraph("<b>Value</b>", S["body"])],
+        ["Total Attacks Detected", str(stats["total_sessions"])],
+        ["Analyzed by AI", str(stats["analyzed"])],
+        ["Critical Risk Hits", str(stats["critical"])],
+        ["Average AI Confidence", f"{stats['avg_confidence'] * 100:.1f}%"]
+    ]
+    t = Table(data, colWidths=[80*mm, 40*mm])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), GRAY_DARK),
+        ('TEXTCOLOR', (0,0), (-1,0), WHITE),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+        ('TEXTCOLOR', (0,1), (-1,-1), GRAY_DARK),
+        ('GRID', (0,0), (-1,-1), 0.5, GRAY_MID),
+    ]))
+    elements.append(t)
+    elements.append(Spacer(1, 8 * mm))
+
+    # ── Origins ──
+    top_countries = stats.get("top_countries", {})
+    if top_countries:
+        elements.append(Paragraph("<b>2. GEOGRAPHIC ORIGINS</b>", S["section_header"]))
+        elements.append(HRFlowable(width="100%", thickness=0.5, color=GRAY_MID, spaceAfter=4))
+        geo_data = [[Paragraph("<b>Country</b>", S["body"]), Paragraph("<b>Attacks</b>", S["body"])]]
+        geo_items = list(top_countries.items())
+        for i in range(min(len(geo_items), 10)):
+            country, count = geo_items[i]
+            geo_data.append([country, str(count)])
+            
+        gt = Table(geo_data, colWidths=[80*mm, 40*mm])
+        gt.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), GRAY_DARK),
+            ('TEXTCOLOR', (0,0), (-1,-1), GRAY_MID),
+            ('TEXTCOLOR', (0,0), (-1,0), WHITE),
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('GRID', (0,0), (-1,-1), 0.5, GRAY_MID),
+        ]))
+        elements.append(gt)
+        elements.append(Spacer(1, 8 * mm))
+
+    # ── Top Behaviors ──
+    top_tags = stats.get("top_behavioral_tags", {})
+    if top_tags:
+        elements.append(Paragraph("<b>3. ADVERSARY BEHAVIORS</b>", S["section_header"]))
+        elements.append(HRFlowable(width="100%", thickness=0.5, color=GRAY_MID, spaceAfter=4))
+        tag_data = [[Paragraph("<b>Tactic / Behavior</b>", S["body"]), Paragraph("<b>Frequency</b>", S["body"])]]
+        tag_items = list(top_tags.items())
+        for i in range(min(len(tag_items), 10)):
+            tag, count = tag_items[i]
+            tag_data.append([tag, str(count)])
+            
+        tt = Table(tag_data, colWidths=[80*mm, 40*mm])
+        tt.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), GRAY_DARK),
+            ('TEXTCOLOR', (0,0), (-1,-1), GRAY_MID),
+            ('TEXTCOLOR', (0,0), (-1,0), WHITE),
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('GRID', (0,0), (-1,-1), 0.5, GRAY_MID),
+        ]))
+        elements.append(tt)
+        elements.append(Spacer(1, 8 * mm))
+
+    # Footer
+    elements.append(Spacer(1, 10 * mm))
+    elements.append(HRFlowable(width="100%", thickness=0.5, color=GRAY_MID))
+    elements.append(Spacer(1, 2 * mm))
+    elements.append(Paragraph(
+        f"<font size='7' color='#64748b'>Generated by GhostNet Analysis Console · {generated_at} · "
+        f"For authorized security research use only.</font>",
+        S["body"],
+    ))
+
+    def _page_template(canvas, d):
+        canvas.saveState()
+        canvas.setStrokeColor(CYAN)
+        canvas.setLineWidth(2)
+        canvas.line(20 * mm, A4[1] - 10 * mm, A4[0] - 20 * mm, A4[1] - 10 * mm)
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(GRAY_MID)
+        canvas.drawRightString(A4[0] - 20 * mm, 10 * mm, f"Page {d.page}")
         canvas.restoreState()
 
     doc.build(elements, onFirstPage=_page_template, onLaterPages=_page_template)

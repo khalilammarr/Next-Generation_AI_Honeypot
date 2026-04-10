@@ -54,6 +54,7 @@ class SessionDB:
             self._migrate_add_column(cursor, "sessions", "confidence", "REAL")
             self._migrate_add_column(cursor, "sessions", "behavioral_tags", "TEXT")
             self._migrate_add_column(cursor, "sessions", "recommendations", "TEXT")
+            self._migrate_add_column(cursor, "sessions", "country", "TEXT")
             conn.commit()
 
     @staticmethod
@@ -121,6 +122,12 @@ class SessionDB:
             ))
             conn.commit()
 
+    def set_session_country(self, session_id: str, country: str) -> None:
+        with self._connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute('UPDATE sessions SET country = ? WHERE session_id = ?', (country, session_id))
+            conn.commit()
+
     # ──────────────────── READ ────────────────────
 
     def session_exists(self, session_id: str) -> bool:
@@ -129,17 +136,52 @@ class SessionDB:
             cursor.execute('SELECT 1 FROM sessions WHERE session_id = ? LIMIT 1', (session_id,))
             return cursor.fetchone() is not None
 
-    def get_sessions(self) -> List[Dict[str, Any]]:
+    def get_sessions(self, page: int = 1, limit: int = 0, time_range: str = "all", offset: Optional[int] = None) -> List[Dict[str, Any]]:
         with self._connect() as conn:
             cursor = conn.cursor()
-            cursor.execute('''
+            query = '''
                 SELECT session_id, ip_address, protocol, start_time, risk_level,
-                       analysis_summary AS summary
+                       analysis_summary AS summary, country
                 FROM sessions
-                ORDER BY start_time DESC
-            ''')
+            '''
+            params = []
+            
+            # Time range logic
+            where_clauses = []
+            if time_range == "today":
+                where_clauses.append("REPLACE(start_time, 'T', ' ') >= datetime('now', 'start of day')")
+            elif time_range == "7d":
+                where_clauses.append("REPLACE(start_time, 'T', ' ') >= datetime('now', '-7 days')")
+            elif time_range == "30d":
+                where_clauses.append("REPLACE(start_time, 'T', ' ') >= datetime('now', '-30 days')")
+                
+            if where_clauses:
+                query += " WHERE " + " AND ".join(where_clauses)
+
+            query += " ORDER BY start_time DESC"
+            if limit > 0:
+                if offset is None:
+                    offset = (page - 1) * limit
+                query += " LIMIT ? OFFSET ?"
+                params.extend([limit, offset])
+                
+            cursor.execute(query, params)
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
+
+    def get_sessions_count(self, time_range: str = "all") -> int:
+        with self._connect() as conn:
+            cursor = conn.cursor()
+            query = "SELECT COUNT(*) FROM sessions"
+            if time_range == "today":
+                query += " WHERE REPLACE(start_time, 'T', ' ') >= datetime('now', 'start of day')"
+            elif time_range == "7d":
+                query += " WHERE REPLACE(start_time, 'T', ' ') >= datetime('now', '-7 days')"
+            elif time_range == "30d":
+                query += " WHERE REPLACE(start_time, 'T', ' ') >= datetime('now', '-30 days')"
+                
+            cursor.execute(query)
+            return cursor.fetchone()[0]
 
     def get_session_events(self, session_id):
         with self._connect() as conn:
@@ -171,8 +213,26 @@ class SessionDB:
             # Deserialize JSON fields
             for key in ("mitre_mapping", "iocs", "behavioral_tags", "recommendations"):
                 raw = d.get(key)
-                d[key] = json.loads(raw) if raw else []
+                try:
+                    d[key] = json.loads(raw) if raw else []
+                except Exception:
+                    d[key] = []
             return d
+
+    def get_last_session_id(self, ip_address: str, protocol: str) -> Optional[Tuple[str, str]]:
+        """Find the most recent session ID and its end time for an IP."""
+        with self._connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT session_id, COALESCE(end_time, start_time) as last_ts
+                FROM sessions
+                WHERE ip_address = ? AND protocol = ?
+                ORDER BY last_ts DESC LIMIT 1
+            ''', (ip_address, protocol))
+            row = cursor.fetchone()
+            if row:
+                return row["session_id"], row["last_ts"]
+            return None
 
     def get_analysis(self, session_id: str) -> Optional[Dict[str, Any]]:
         with self._connect() as conn:
@@ -202,43 +262,84 @@ class SessionDB:
                 "behavioral_tags": json.loads(row["behavioral_tags"] or "[]"),
                 "recommendations": json.loads(row["recommendations"] or "[]"),
             }
+    def get_unanalyzed_sessions(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Retrieve sessions that have events but haven't been successfully analyzed yet."""
+        with self._connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT DISTINCT s.session_id, s.ip_address
+                FROM sessions s
+                JOIN events e ON s.session_id = e.session_id
+                WHERE (s.analysis_summary IS NULL OR s.analysis_summary = '')
+                ORDER BY s.start_time DESC
+                LIMIT ?
+            ''', (limit,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_critical_insights(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """Retrieve the most recent critical/high-risk analyzed sessions."""
+        with self._connect() as conn:
+            cursor = conn.cursor()
+            query = """
+                SELECT session_id, ip_address, start_time, risk_level, 
+                       analysis_summary, country
+                FROM sessions
+                WHERE risk_level IN ('critical', 'high') 
+                  AND analysis_summary IS NOT NULL 
+                  AND analysis_summary != ''
+                ORDER BY start_time DESC
+                LIMIT ?
+            """
+            cursor.execute(query, (limit,))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
 
     # ──────────────────── STATS ────────────────────
 
-    def get_stats(self) -> Dict[str, Any]:
-        """Aggregate statistics for the dashboard overview."""
+    def get_stats(self, time_range: str = "all") -> Dict[str, Any]:
+        """Aggregate statistics for the dashboard overview and batch reports."""
         with self._connect() as conn:
             cursor = conn.cursor()
+            
+            where_clause = ""
+            if time_range == "today":
+                where_clause = "WHERE REPLACE(start_time, 'T', ' ') >= datetime('now', 'start of day')"
+            elif time_range == "7d":
+                where_clause = "WHERE REPLACE(start_time, 'T', ' ') >= datetime('now', '-7 days')"
+            elif time_range == "30d":
+                where_clause = "WHERE REPLACE(start_time, 'T', ' ') >= datetime('now', '-30 days')"
+            
+            where_and = "AND" if where_clause else "WHERE"
 
-            cursor.execute('SELECT COUNT(*) FROM sessions')
+            cursor.execute(f'SELECT COUNT(*) FROM sessions {where_clause}')
             total = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM sessions WHERE risk_level = 'critical'")
+            cursor.execute(f"SELECT COUNT(*) FROM sessions {where_clause} {where_and if where_clause else 'WHERE'} risk_level = 'critical'")
             critical = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM sessions WHERE risk_level = 'high'")
+            cursor.execute(f"SELECT COUNT(*) FROM sessions {where_clause} {where_and if where_clause else 'WHERE'} risk_level = 'high'")
             high = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM sessions WHERE risk_level = 'medium'")
+            cursor.execute(f"SELECT COUNT(*) FROM sessions {where_clause} {where_and if where_clause else 'WHERE'} risk_level = 'medium'")
             medium = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM sessions WHERE risk_level = 'low'")
+            cursor.execute(f"SELECT COUNT(*) FROM sessions {where_clause} {where_and if where_clause else 'WHERE'} risk_level = 'low'")
             low = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM sessions WHERE risk_level = 'unknown' OR risk_level IS NULL")
+            cursor.execute(f"SELECT COUNT(*) FROM sessions {where_clause} {where_and if where_clause else 'WHERE'} (risk_level = 'unknown' OR risk_level IS NULL)")
             unknown = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM sessions WHERE protocol = 'SSH'")
+            cursor.execute(f"SELECT COUNT(*) FROM sessions {where_clause} {where_and if where_clause else 'WHERE'} protocol = 'SSH'")
             ssh_count = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM sessions WHERE protocol = 'HTTP'")
+            cursor.execute(f"SELECT COUNT(*) FROM sessions {where_clause} {where_and if where_clause else 'WHERE'} protocol = 'HTTP'")
             http_count = cursor.fetchone()[0]
 
-            cursor.execute("SELECT AVG(confidence) FROM sessions WHERE confidence IS NOT NULL")
+            cursor.execute(f"SELECT AVG(confidence) FROM sessions {where_clause} {where_and if where_clause else 'WHERE'} confidence IS NOT NULL")
             avg_conf_row = cursor.fetchone()[0]
             avg_confidence = round(avg_conf_row, 2) if avg_conf_row else 0.0
 
-            cursor.execute("SELECT COUNT(*) FROM sessions WHERE analysis_summary IS NOT NULL AND analysis_summary != ''")
+            cursor.execute(f"SELECT COUNT(*) FROM sessions {where_clause} {where_and if where_clause else 'WHERE'} analysis_summary IS NOT NULL AND analysis_summary != ''")
             analyzed = cursor.fetchone()[0]
 
             return {
@@ -263,16 +364,29 @@ class SessionDB:
                     "SSH": ssh_count,
                     "HTTP": http_count,
                 },
-                "top_behavioral_tags": self._get_top_behavioral_tags(cursor),
-                "activity_24h": self._get_24h_activity(cursor),
+                "top_behavioral_tags": self._get_top_behavioral_tags(cursor, where_clause),
+                "activity_over_time": self._get_activity_over_time(cursor, where_clause),
+                "top_countries": self._get_top_countries(cursor, where_clause),
             }
 
-    def _get_24h_activity(self, cursor) -> List[Dict[str, Any]]:
-        """Get session counts grouped by hour for the last 24 hours."""
-        query = """
-            SELECT strftime('%Y-%m-%d %H:00', start_time) as hour, COUNT(*) as count
+    def _get_top_countries(self, cursor, where_clause: str = "") -> Dict[str, int]:
+        query = f"SELECT country, COUNT(*) as count FROM sessions "
+        filter_clause = "WHERE country IS NOT NULL AND country != 'Unknown'"
+        if where_clause:
+            query += f"{where_clause} AND country IS NOT NULL AND country != 'Unknown'"
+        else:
+            query += filter_clause
+        query += " GROUP BY country ORDER BY count DESC LIMIT 10"
+        cursor.execute(query)
+        return {row['country']: row['count'] for row in cursor.fetchall()}
+
+    def _get_activity_over_time(self, cursor, where_clause: str = "") -> List[Dict[str, Any]]:
+        """Get session counts grouped by hour/day based on the selected range."""
+        # Use strftime but handle the ISO 'T' separator if present
+        query = f"""
+            SELECT strftime('%Y-%m-%d %H:00', REPLACE(start_time, 'T', ' ')) as hour, COUNT(*) as count
             FROM sessions
-            WHERE start_time >= datetime('now', '-24 hours')
+            {where_clause}
             GROUP BY hour
             ORDER BY hour ASC
         """
@@ -280,18 +394,31 @@ class SessionDB:
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
-    def _get_top_behavioral_tags(self, cursor) -> Dict[str, int]:
-        """Aggregate behavioral tags from all analyzed sessions."""
-        cursor.execute("SELECT behavioral_tags FROM sessions WHERE behavioral_tags IS NOT NULL")
+    def _get_top_behavioral_tags(self, cursor, where_clause: str = "") -> Dict[str, int]:
+        """Aggregate behavioral tags from all analyzed sessions within the time range."""
+        query = "SELECT behavioral_tags FROM sessions "
+        filter_str = "behavioral_tags IS NOT NULL"
+        if where_clause:
+            query += f"{where_clause} AND {filter_str}"
+        else:
+            query += f"WHERE {filter_str}"
+            
+        cursor.execute(query)
         all_tags = cursor.fetchall()
         tag_counts = {}
         for row in all_tags:
             try:
-                tags = json.loads(row[0])
+                # row is a sqlite3.Row or tuple
+                val = row[0] if isinstance(row, tuple) else row["behavioral_tags"]
+                tags = json.loads(val or "[]")
                 for t in tags:
                     tag_counts[t] = tag_counts.get(t, 0) + 1
-            except:
+            except Exception:
                 continue
-        # Support returning top 10
-        sorted_tags = dict(sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:10])
-        return sorted_tags
+        # Sort and return top 10
+        sorted_items = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
+        top10 = {}
+        for i in range(min(len(sorted_items), 10)):
+            k, v = sorted_items[i]
+            top10[k] = v
+        return top10

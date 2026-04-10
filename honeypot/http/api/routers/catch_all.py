@@ -33,34 +33,34 @@ async def catch_all(request: Request, path: str, background_tasks: BackgroundTas
     except Exception:
         body_text = ""
 
-    event = {
-        "eventid": "http.honeypot.hit",
-        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-        "src_ip": request.client.host if request.client else "unknown",
-        "method": request.method,
-        "path": safe_path,
-        "user_agent": safe_ua,
-        "payload": body_text,
-    }
-    background_tasks.add_task(log_event, event)
+    # Get the real public IP if behind a proxy
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        # Get the first IP in the list
+        src_ip = forwarded.split(",")[0].strip()
+    else:
+        src_ip = request.client.host if request.client else "unknown"
 
     # Get AI-generated or cached response
     response_text, source, model_used, was_cached, was_fallback = await orchestrator.get_response(
         safe_path, request.method, safe_ua
     )
 
-    # Log the AI decision for SOC analysis
-    ai_event = {
-        "eventid": "http.honeypot.ai_decision",
+    # Consolidated Transaction Log (prevents double logging)
+    transaction_event = {
+        "eventid": "http.honeypot.transaction",
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-        "src_ip": event["src_ip"],
+        "src_ip": src_ip,
+        "method": request.method,
         "path": safe_path,
-        "source": source,
-        "model": model_used,
-        "cached": was_cached,
-        "fallback": was_fallback,
+        "user_agent": safe_ua,
+        "payload": body_text,
+        "ai_source": source,
+        "ai_model": model_used,
+        "ai_cached": was_cached,
+        "ai_fallback": was_fallback,
     }
-    background_tasks.add_task(log_event, ai_event)
+    background_tasks.add_task(log_event, transaction_event)
 
     # Response jitter: simulate real server processing time (50-300ms)
     jitter = random.uniform(0.05, 0.3)
