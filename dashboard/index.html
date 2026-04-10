@@ -1685,6 +1685,11 @@
   </div>
 
   <div id="toast"></div>
+  
+  <div id="analysis-progress-wrap" style="position: fixed; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(0,0,0,0.2); z-index: 9999; display: none;">
+    <div id="analysis-progress-bar" style="height: 100%; width: 0%; background: var(--accent); box-shadow: 0 0 10px var(--accent); transition: width 0.4s ease;"></div>
+    <div id="analysis-progress-text" style="position: absolute; bottom: 8px; right: 12px; font-family: var(--font-mono); font-size: 0.62rem; color: var(--accent); text-shadow: 0 0 5px rgba(0,0,0,0.5);">Analyzing Sessions: 0%</div>
+  </div>
 
   <script>
     /* ══════════════════════════════════════════════
@@ -1767,6 +1772,14 @@
       return String(s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getFlagEmoji(countryCode) {
+      if (!countryCode || countryCode === 'Unknown' || countryCode === 'Local') return '🌐';
+      // Simple lookup for common regions or just use a placeholder
+      const code = countryCode.toUpperCase();
+      // Most browsers support the regional indicator offset
+      return code.split('').map(char => String.fromCodePoint(char.charCodeAt(0) + 127397)).join('');
     }
 
     function animateCount(el, target, dec = 0) {
@@ -1985,6 +1998,10 @@
     async function analyzeAll() {
       const btn = document.getElementById('analyze-all-btn');
       const originalText = btn?.textContent || 'Analyze All';
+      const progressWrap = document.getElementById('analysis-progress-wrap');
+      const progressBar = document.getElementById('analysis-progress-bar');
+      const progressText = document.getElementById('analysis-progress-text');
+      
       try {
         if (btn) {
             btn.disabled = true;
@@ -1993,6 +2010,33 @@
         const res = await fetch('/api/sessions/analyze_all', { method: 'POST' });
         const d = await res.json();
         showToast(d.message);
+        
+        // Show progress bar
+        if (progressWrap) progressWrap.style.display = 'block';
+        
+        let attempts = 0;
+        const checkProgress = setInterval(async () => {
+           attempts++;
+           const r = await fetch('/api/stats');
+           if (r.ok) {
+             const stats = await r.json();
+             const total = stats.total_sessions || 0;
+             const analyzed = stats.analyzed || 0;
+             const pct = total > 0 ? Math.round((analyzed / total) * 100) : 0;
+             
+             if (progressBar) progressBar.style.width = pct + '%';
+             if (progressText) progressText.textContent = `Analyzing Sessions: ${pct}% (${analyzed}/${total})`;
+             
+             if (pct >= 100 || attempts > 60) {
+               clearInterval(checkProgress);
+               setTimeout(() => {
+                 if (progressWrap) progressWrap.style.display = 'none';
+                 showToast('Analysis complete');
+               }, 2000);
+             }
+           }
+        }, 3000);
+
         setTimeout(() => {
           if (btn) {
               btn.disabled = false;
@@ -2046,7 +2090,7 @@
     /* ══════════════════════════════════════════════
        NAVIGATION
     ══════════════════════════════════════════════ */
-    function switchTab(tabId) {
+    function showPane(tabId) {
       document.getElementById('tab-feed').style.background = 'transparent';
       document.getElementById('tab-feed').style.borderColor = 'transparent';
       document.getElementById('tab-feed').style.color = 'var(--text-dim)';
@@ -2060,11 +2104,7 @@
       document.getElementById(`tab-${tabId}`).style.color = 'var(--text)';
       
       document.querySelectorAll('.layout').forEach(l => l.style.display = 'none');
-      if (tabId === 'feed') {
-        document.querySelector('.layout').style.display = 'flex'; // The first layout is feed
-      } else {
-        document.getElementById(`pane-${tabId}`).style.display = 'flex';
-      }
+      document.getElementById(`pane-${tabId}`).style.display = 'flex';
     }
 
     /* ══════════════════════════════════════════════
