@@ -446,7 +446,12 @@ async def serve_dashboard():
         return f.read()
 
 
-# For running locally:
+# For running locally. The dashboard has no authentication, so it binds to
+# loopback by default; set DASHBOARD_HOST/DASHBOARD_PORT to change that.
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(
+        app,
+        host=os.getenv("DASHBOARD_HOST", "127.0.0.1"),
+        port=int(os.getenv("DASHBOARD_PORT", "8080")),
+    )

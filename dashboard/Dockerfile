@@ -17,4 +17,6 @@ COPY . .
 
 EXPOSE 8080
 
+# Binds all interfaces inside the container only so the published port works.
+# docker-compose.yml publishes it on 127.0.0.1 by default (DASHBOARD_BIND).
 CMD ["uvicorn", "dashboard.app:app", "--host", "0.0.0.0", "--port", "8080"]
