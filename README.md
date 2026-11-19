@@ -68,15 +68,6 @@ Tests: `pip install -r requirements-dev.txt && pytest`. They cover only the sani
 - Wazuh: `custom_http_honeypot_rules.xml` matches an event id (`http.honeypot.hit`) the HTTP service no longer emits. `ghostnet_http_decoder.xml` and `ghostnet_http_rules.xml` match the current events, but `setup.sh` only mounts the two original rule files, so mount those by hand.
 - This is an active deception system. Run it only on infrastructure you own, isolated from anything you care about, and check the legal position of logging third-party traffic where you operate.
 
-## Team
-
-University project by four people. Roles are from the commit history and `git blame`; line counts are approximate.
-
-- Khalil Ammar: HTTP orchestrator, sanitizer and policy modules, Cowrie configuration and LLM integration, `setup.sh`, dashboard backend and session ingestion, Wazuh rules for Cowrie, project report (about 3,900 lines of the current tree).
-- Mariem Benabid: dashboard front end and theming (about 1,500 lines).
-- Yasmine Ouerghi: session database and analysis work, PDF report generator (about 1,000 lines).
-- Ben-Ammar-Sabri: Wazuh rules for the HTTP honeypot (about 90 lines).
-
 ## License
 
 No license has been chosen, so all rights are reserved by the authors. `configs/protocol_patch.py` is derived from Cowrie and keeps its original BSD copyright notice.
