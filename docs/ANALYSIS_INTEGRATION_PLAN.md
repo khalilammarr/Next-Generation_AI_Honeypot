@@ -40,24 +40,10 @@ We use a lightweight **SQLite** database (`analysis.db`) to maintain a persisten
 
 ## 🗺️ 3. Component Interaction Diagram
 
-```mermaid
-graph TD
-    A[Attacker] -->|Interacts| B[Honeypots Docker]
-    B -->|Logs| C[Raw JSON Files]
-    
-    subgraph "GhostNet Analysis System"
-        D[analyze_sessions.py] -->|Parses| C
-        D -->|Populates| E[(SQLite analysis.db)]
-        
-        F[llm_analysis.py] <-->|Fetch/Update| E
-        F <-->|AI Reasoning| G[Groq / Kimi API]
-        
-        H[ghostnet_analyzer.py] -->|Extracts| E
-        H -->|Generates| I[Markdown Reports]
-    end
+<p align="center"><img src="analysis_integration_plan-diagram.svg" width="100%" alt="Architecture diagram"></p>
 
-    I -->|Review| J[Security Admin]
-```
+<sub>Diagram source: [diagrams/analysis_integration_plan-diagram.mmd](diagrams/analysis_integration_plan-diagram.mmd)</sub>
+
 
 ---
 

@@ -1,0 +1,16 @@
+graph TD
+    A[Attacker] -->|Interacts| B[Honeypots Docker]
+    B -->|Logs| C[Raw JSON Files]
+    
+    subgraph "GhostNet Analysis System"
+        D[analyze_sessions.py] -->|Parses| C
+        D -->|Populates| E[(SQLite analysis.db)]
+        
+        F[llm_analysis.py] <-->|Fetch/Update| E
+        F <-->|AI Reasoning| G[Groq / Kimi API]
+        
+        H[ghostnet_analyzer.py] -->|Extracts| E
+        H -->|Generates| I[Markdown Reports]
+    end
+
+    I -->|Review| J[Security Admin]

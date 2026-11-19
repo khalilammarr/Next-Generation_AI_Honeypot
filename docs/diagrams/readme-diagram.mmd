@@ -1,0 +1,18 @@
+flowchart TB
+    A[Attacker] -->|SSH / Telnet :22 :23| C[Cowrie<br/>LLM backend patch]
+    A -->|HTTP :80| F[FastAPI honeypot]
+
+    F --> S1[Input filter<br/>sanitize_path, sanitize_user_agent]
+    S1 --> O[LLM orchestrator<br/>classify, cache, fallbacks]
+    O --> L[(LLM API<br/>Groq, OpenAI-compatible)]
+    L --> S2[Output filter<br/>strip think tags, redact_output]
+    S2 --> F
+
+    C -->|command + short history| L
+    L -->|text| C
+
+    F -->|http_honeypot.json| LOG[(/var/log/cowrie)]
+    C -->|cowrie.json| LOG
+    LOG --> W[Wazuh<br/>custom decoders and rules]
+    LOG --> D[Dashboard :8080<br/>SQLite sessions, LLM session analysis, PDF reports]
+    D --> L
