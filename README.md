@@ -48,7 +48,6 @@ Tests: `pip install -r requirements-dev.txt && pytest`. They cover only the sani
 - The dashboard sends each source IP to `ip-api.com` over plain HTTP for a country lookup, and sends session timelines, including attacker-supplied text, to the configured LLM provider.
 - **Observed in testing:** all traffic came from the team's own machines. Between 4 April and 5 May 2026 the database recorded 1,337 HTTP sessions and 70 SSH sessions from private-range IPs. The model analysed 963 of the 1,407 sessions; its risk labels reflect lab traffic and are not findings about real attackers. The database is not included.
 - How well this fools a real attacker or a fingerprinting tool was not measured.
-- `docs/PROJECT_MASTER_PLAN.md` is the original plan. It names a local Qwen model, LangChain, Redis and an MQTT event bus; the implementation uses a hosted OpenAI-compatible API and none of those.
 - Wazuh: `custom_http_honeypot_rules.xml` matches an event id (`http.honeypot.hit`) the HTTP service no longer emits. `ghostnet_http_decoder.xml` and `ghostnet_http_rules.xml` match the current events, but `setup.sh` only mounts the two original rule files, so mount those by hand.
 - This is an active deception system. Run it only on infrastructure you own, isolated from anything you care about, and check the legal position of logging third-party traffic where you operate.
 
