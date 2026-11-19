@@ -1,23 +1,26 @@
 """
 Centralized Configuration (Thread-Safe, Environment-Driven).
-API keys are NEVER hardcoded. If NVIDIA_API_KEY is missing, LLM calls fail gracefully.
+API keys are NEVER hardcoded. If GROQ_API_KEY is missing, LLM calls fail gracefully.
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 LOG_DIR = "/app/logs"
 LOG_FILE = os.path.join(LOG_DIR, "http_honeypot.json")
 PERSONALITY_FILE = "/app/personality.txt"
 
-# --- API Configuration (NO HARDCODED KEYS) ---
-NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
-NVIDIA_BASE_URL = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
-NVIDIA_MODEL_PRIMARY = os.environ.get("NVIDIA_MODEL_PRIMARY", "meta/llama-3.3-70b-instruct")
-NVIDIA_MODEL_SECONDARY = os.environ.get("NVIDIA_MODEL_SECONDARY", "meta/llama-3.3-70b-instruct")
+# --- API Configuration (Groq Migration) ---
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_BASE_URL = os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_MODEL_PRIMARY = os.environ.get("GROQ_MODEL_PRIMARY", "llama-3.1-8b-instant")
+GROQ_MODEL_SECONDARY = os.environ.get("GROQ_MODEL_SECONDARY", "llama-3.1-8b-instant")
 
 # --- LLM Performance Tuning ---
-LLM_TIMEOUT_SECONDS = float(os.environ.get("LLM_TIMEOUT_SECONDS", "1.8"))
-LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "320"))
+LLM_TIMEOUT_SECONDS = float(os.environ.get("LLM_TIMEOUT_SECONDS", "5.0"))
+LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "512"))
 LLM_CONCURRENCY = int(os.environ.get("LLM_CONCURRENCY", "20"))
 
 # --- Cache & Cost Control ---

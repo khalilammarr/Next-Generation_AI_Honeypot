@@ -1,6 +1,6 @@
 """
 IP-Based Sliding Window Rate Limiter.
-Protects the NVIDIA NIM API budget from brute-force token exhaustion.
+Protects the LLM API budget from brute-force token exhaustion.
 Returns a realistic Apache 429 page when an attacker exceeds the threshold.
 """
 

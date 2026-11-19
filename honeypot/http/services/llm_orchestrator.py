@@ -19,10 +19,10 @@ from core.config import (
     LLM_MAX_TOKENS,
     LLM_TIMEOUT_SECONDS,
     METRICS_LOG_EVERY,
-    NVIDIA_API_KEY,
-    NVIDIA_BASE_URL,
-    NVIDIA_MODEL_PRIMARY,
-    NVIDIA_MODEL_SECONDARY,
+    GROQ_API_KEY,
+    GROQ_BASE_URL,
+    GROQ_MODEL_PRIMARY,
+    GROQ_MODEL_SECONDARY,
     PERSONALITY_FILE,
     RESPONSE_CACHE_TTL_SECONDS,
     MAX_CACHE_ITEMS,
@@ -33,10 +33,10 @@ from core.config import (
 class LLMOrchestrator:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        if not NVIDIA_API_KEY:
-            self.logger.warning("NVIDIA_API_KEY is empty; LLM calls will fail and fallback routing will be used.")
+        if not GROQ_API_KEY:
+            self.logger.warning("GROQ_API_KEY is empty; LLM calls will fail and fallback routing will be used.")
 
-        self.client = OpenAI(base_url=NVIDIA_BASE_URL, api_key=NVIDIA_API_KEY, timeout=LLM_TIMEOUT_SECONDS)
+        self.client = OpenAI(base_url=GROQ_BASE_URL, api_key=GROQ_API_KEY, timeout=LLM_TIMEOUT_SECONDS)
         self.system_prompt = self._load_system_prompt()
         self.cache = TTLCache(ttl_seconds=RESPONSE_CACHE_TTL_SECONDS, max_items=MAX_CACHE_ITEMS)
         self.semaphore = asyncio.Semaphore(LLM_CONCURRENCY)
@@ -141,7 +141,7 @@ class LLMOrchestrator:
             self._log_metrics_if_due()
             return fast_response, "deterministic_fast", "none", False, False
 
-        for model_name in [NVIDIA_MODEL_PRIMARY, NVIDIA_MODEL_SECONDARY]:
+        for model_name in [GROQ_MODEL_PRIMARY, GROQ_MODEL_SECONDARY]:
             if not model_name:
                 continue
 

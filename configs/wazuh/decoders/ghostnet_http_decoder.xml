@@ -1,0 +1,25 @@
+<!-- GhostNet HTTP Honeypot Decoder for Wazuh -->
+<decoder name="ghostnet-http-honeypot">
+  <prematch>{"eventid": "http.honeypot.</prematch>
+</decoder>
+
+<decoder name="ghostnet-http-transaction">
+  <parent>ghostnet-http-honeypot</parent>
+  <prematch>{"eventid": "http.honeypot.transaction"</prematch>
+  <regex>\"src_ip\": \"(\.+)\", \"method\": \"(\.+)\", \"path\": \"(\.+)\", \"user_agent\": \"(\.+)\", \"payload\": \"(\.*)\"</regex>
+  <order>srcip, http_method, url, browser, data</order>
+</decoder>
+
+<decoder name="ghostnet-http-login-view">
+  <parent>ghostnet-http-honeypot</parent>
+  <prematch>{"eventid": "http.honeypot.login_view"</prematch>
+  <regex>\"src_ip\": \"(\.+)\", \"method\": \"(\.+)\", \"path\": \"(\.+)\"</regex>
+  <order>srcip, http_method, url</order>
+</decoder>
+
+<decoder name="ghostnet-http-credential-harvest">
+  <parent>ghostnet-http-honeypot</parent>
+  <prematch>{"eventid": "http.honeypot.credential_harvest"</prematch>
+  <regex>\"src_ip\": \"(\.+)\", .+\"username\": \"(\.+)\", \"password\": \"(\.+)\"</regex>
+  <order>srcip, user, status</order>
+</decoder>

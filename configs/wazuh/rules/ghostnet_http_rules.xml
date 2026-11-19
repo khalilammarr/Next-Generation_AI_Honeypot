@@ -1,0 +1,55 @@
+<!-- GhostNet HTTP Honeypot Rules for Wazuh -->
+<group name="ghostnet,honeypot,http,">
+
+  <!-- General HTTP transaction catch-all -->
+  <rule id="100500" level="5">
+    <decoded_as>ghostnet-http-transaction</decoded_as>
+    <description>GhostNet HTTP Honeypot: Probe from $(srcip) - $(http_method) $(url)</description>
+    <options>no_full_log</options>
+    <group>honeypot_http,</group>
+  </rule>
+
+  <!-- High-value path probes -->
+  <rule id="100501" level="8">
+    <if_sid>100500</if_sid>
+    <url>/admin|/wp-login|/phpmyadmin|/.env|/config|/backup|/db|/shell|/cmd</url>
+    <description>GhostNet HTTP Honeypot: High-value path probe from $(srcip) - $(url)</description>
+    <group>honeypot_http,attack,web_scan,</group>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+  </rule>
+
+  <!-- Login page visits -->
+  <rule id="100502" level="6">
+    <decoded_as>ghostnet-http-login-view</decoded_as>
+    <description>GhostNet HTTP Honeypot: Login page accessed by $(srcip)</description>
+    <group>honeypot_http,authentication,</group>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+  </rule>
+
+  <!-- Credential harvesting - highest priority -->
+  <rule id="100503" level="12">
+    <decoded_as>ghostnet-http-credential-harvest</decoded_as>
+    <description>GhostNet HTTP Honeypot: Credential submission from $(srcip) - user: $(user)</description>
+    <group>honeypot_http,authentication_failed,credential_harvest,</group>
+    <mitre>
+      <id>T1110</id>
+      <id>T1078</id>
+    </mitre>
+  </rule>
+
+  <!-- Brute force detection - multiple credential attempts -->
+  <rule id="100504" level="14" frequency="5" timeframe="60">
+    <if_matched_sid>100503</if_matched_sid>
+    <same_field>srcip</same_field>
+    <description>GhostNet HTTP Honeypot: Brute-force attack detected from $(srcip) - $(frequency) attempts in 60s</description>
+    <group>honeypot_http,brute_force,</group>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+  </rule>
+
+</group>

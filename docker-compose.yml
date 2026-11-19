@@ -1,0 +1,81 @@
+services:
+  # SSH Honeypot (Cowrie)
+  ssh-honeypot:
+    image: cowrie/cowrie:latest
+    container_name: cowrie-ssh
+    ports:
+      - "22:2222"
+      - "23:2223"
+    volumes:
+      - /var/log/cowrie:/cowrie/cowrie-git/var/log/cowrie
+      - ./configs/cowrie.cfg:/cowrie/cowrie-git/etc/cowrie.cfg
+      - ./configs/protocol_patch.py:/cowrie/cowrie-git/src/cowrie/llm/protocol.py
+      - cowrie-var:/cowrie/cowrie-git/var/
+
+    environment:
+      - LLM_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - LLM_MODEL_SSH=${GROQ_MODEL:-llama-3.1-8b-instant}
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.1-8b-instant}
+    dns:
+      - 8.8.8.8
+    restart: always
+
+  # HTTP Honeypot (FastAPI Agent)
+  http-honeypot:
+    build: ./honeypot/http
+    container_name: honey-http
+    ports:
+      - "80:8000"
+    volumes:
+      - /var/log/cowrie:/app/logs
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_BASE_URL=${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      - GROQ_MODEL_PRIMARY=${GROQ_MODEL_PRIMARY:-${GROQ_MODEL:-llama-3.1-8b-instant}}
+      - GROQ_MODEL_SECONDARY=${GROQ_MODEL_SECONDARY:-${GROQ_MODEL:-llama-3.1-8b-instant}}
+      - LLM_TIMEOUT_SECONDS=${LLM_TIMEOUT_SECONDS:-4.0}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-750}
+      - RESPONSE_CACHE_TTL_SECONDS=${RESPONSE_CACHE_TTL_SECONDS:-120}
+      - THINKING_ENABLED=${THINKING_ENABLED:-false}
+      - LLM_CONCURRENCY=${LLM_CONCURRENCY:-20}
+      - MAX_CACHE_ITEMS=${MAX_CACHE_ITEMS:-2000}
+      - MAX_RESPONSE_CHARS=${MAX_RESPONSE_CHARS:-8000}
+      - FAST_SCANNER_MODE=${FAST_SCANNER_MODE:-true}
+      - METRICS_LOG_EVERY=${METRICS_LOG_EVERY:-100}
+    dns:
+      - 8.8.8.8
+    restart: always
+
+  # Real-time Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: honey-dashboard
+    ports:
+      - "${DASHBOARD_BIND:-127.0.0.1}:3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+    restart: always
+
+  # GhostNet Control Center (Analysis Dashboard)
+  analysis-ui:
+    build:
+      context: .
+      dockerfile: ./dashboard/Dockerfile
+    container_name: ghostnet-dashboard
+    ports:
+      # The app binds 0.0.0.0 inside the container; exposure is controlled here.
+      # The dashboard has no authentication, so it is published on localhost only
+      # unless you set DASHBOARD_BIND (e.g. to a VPN or LAN address).
+      - "${DASHBOARD_BIND:-127.0.0.1}:8080:8080"
+    volumes:
+      - /var/log/cowrie:/var/log/cowrie
+      - .:/app
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY:-${NVIDIA_API_KEY:-}}
+      - GROQ_MODEL=${GROQ_MODEL:-moonshotai/kimi-k2-instruct}
+      - GROQ_BASE_URL=${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+    restart: always
+
+volumes:
+  cowrie-var:

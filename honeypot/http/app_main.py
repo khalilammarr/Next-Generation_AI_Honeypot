@@ -3,7 +3,7 @@ GhostNet HTTP Honeypot — Enterprise Application Hub.
 This is the FastAPI entry point. It wires together:
   - Rate Limiter Middleware (Layer 1 defense)
   - Static Deception Routes (zero-cost traps)
-  - Dynamic AI Catch-All (LLM-powered deception via NVIDIA NIM)
+  - Dynamic AI Catch-All (LLM-powered deception via an OpenAI-compatible API, Groq by default)
 """
 
 import logging

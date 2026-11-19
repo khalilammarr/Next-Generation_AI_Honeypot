@@ -5,7 +5,6 @@ Thumbs.db
 .idea/
 *.swp
 *.tmp
-*.yml
 # Python
 __pycache__/
 *.pyc
@@ -47,4 +46,7 @@ ollama_data/**
 
 # Large third-party stack snapshot (track separately)
 wazuh/wazuh-docker/
-docker-compose.yml
+
+# setup.sh downloads this UI helper on first run
+.bin/
+.pytest_cache/
